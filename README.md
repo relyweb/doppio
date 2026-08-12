@@ -143,6 +143,8 @@ Sources/Doppio/
   SelfTest.swift          Headless assertion verification
 build.sh                 Compile + assemble Doppio.app
 Info.plist               Bundle metadata (LSUIElement = menu-bar agent)
+Resources/AppIcon.svg    Coffee-cup logo (design source)
+Resources/AppIcon.icns   App icon compiled from the SVG (build.sh regenerates)
 Casks/doppio.rb          Homebrew cask (this repo doubles as the tap)
 release.sh               Build, zip, bump the cask, publish the GitHub release
 ```

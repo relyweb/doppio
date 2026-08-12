@@ -6,13 +6,13 @@
 #   2. Update Casks/doppio.rb with the new version + sha256.
 #   3. Create/replace the GitHub release "v<version>" and upload the zip.
 #
-# Usage:  ./release.sh <version>        e.g.  ./release.sh 1.0.0
+# Usage:  ./release.sh <version>        e.g.  ./release.sh 0.0.1
 set -euo pipefail
 cd "$(dirname "$0")"
 
 VERSION="${1:-}"
 if [[ -z "$VERSION" ]]; then
-  echo "usage: $0 <version>   (e.g. 1.0.0)" >&2
+  echo "usage: $0 <version>   (e.g. 0.0.1)" >&2
   exit 1
 fi
 

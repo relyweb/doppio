@@ -24,6 +24,26 @@ mkdir -p "$BUNDLE/Contents/Resources"
 cp "$BIN_PATH" "$BUNDLE/Contents/MacOS/$APP_NAME"
 cp Info.plist "$BUNDLE/Contents/Info.plist"
 
+# App icon. Regenerate the .icns from the SVG source if it is missing and a
+# rasterizer is available; otherwise use the committed one.
+if [[ ! -f Resources/AppIcon.icns ]] && command -v rsvg-convert >/dev/null 2>&1; then
+  echo "==> Regenerating AppIcon.icns from SVG ..."
+  ICONSET=Resources/AppIcon.iconset
+  rm -rf "$ICONSET"; mkdir -p "$ICONSET"
+  for spec in "16 icon_16x16" "32 icon_16x16@2x" "32 icon_32x32" "64 icon_32x32@2x" \
+              "128 icon_128x128" "256 icon_128x128@2x" "256 icon_256x256" \
+              "512 icon_256x256@2x" "512 icon_512x512" "1024 icon_512x512@2x"; do
+    set -- $spec
+    rsvg-convert -w "$1" -h "$1" Resources/AppIcon.svg -o "$ICONSET/$2.png"
+  done
+  iconutil -c icns "$ICONSET" -o Resources/AppIcon.icns
+fi
+if [[ -f Resources/AppIcon.icns ]]; then
+  cp Resources/AppIcon.icns "$BUNDLE/Contents/Resources/AppIcon.icns"
+else
+  echo "warning: Resources/AppIcon.icns missing; app will have no custom icon."
+fi
+
 # Ad-hoc codesign so the bundle has a stable identity (required for the
 # "Start at Login" SMAppService registration to work).
 echo "==> Ad-hoc signing ..."
