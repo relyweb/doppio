@@ -42,6 +42,30 @@ watching for your agent processes.
 - **Custom processes** — add any other process name (e.g. `aider`,
   `cursor-agent`) to the watch list.
 
+## Install via Homebrew
+
+Doppio is distributed as a Homebrew **cask** from its own tap:
+
+```bash
+brew tap relyweb/doppio https://github.com/relyweb/doppio
+brew trust relyweb/doppio        # third-party taps must be trusted once
+brew install --cask doppio
+open -a Doppio                    # launches the menu-bar app
+```
+
+Upgrade / remove:
+
+```bash
+brew upgrade --cask doppio
+brew uninstall --cask doppio     # add --zap to also delete preferences
+```
+
+> The app is ad-hoc signed, not notarized (no Apple Developer ID). The cask's
+> `postflight` strips the Gatekeeper quarantine flag on install, so it launches
+> without the "unidentified developer" prompt. If macOS still blocks it, run
+> `xattr -dr com.apple.quarantine /Applications/Doppio.app` or approve it under
+> System Settings > Privacy & Security.
+
 ## Requirements
 
 - macOS 13 or later (built and tested on macOS 26 / Apple Silicon).
@@ -119,4 +143,19 @@ Sources/Doppio/
   SelfTest.swift          Headless assertion verification
 build.sh                 Compile + assemble Doppio.app
 Info.plist               Bundle metadata (LSUIElement = menu-bar agent)
+Casks/doppio.rb          Homebrew cask (this repo doubles as the tap)
+release.sh               Build, zip, bump the cask, publish the GitHub release
 ```
+
+## Releasing a new version
+
+This repo is its own Homebrew tap: `Casks/doppio.rb` is the cask and GitHub
+Releases host the built app. To cut a release (requires `gh` auth + push
+access):
+
+```bash
+./release.sh 1.1.0        # builds, zips, updates the cask sha256, publishes v1.1.0
+git commit -am "doppio 1.1.0" && git push
+```
+
+Users then get it with `brew upgrade --cask doppio`.
