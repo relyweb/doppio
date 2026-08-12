@@ -1,7 +1,7 @@
 # Doppio
 
 A tiny macOS menu-bar app that keeps your Mac awake for long-running **agentic
-tasks** — Claude Code, [omp](https://github.com/), opencode, or anything else —
+tasks** — Claude Code, omp, opencode, Codex, Gemini, or anything else —
 including **while the screen is locked** and **with the lid closed**.
 
 It is a more reliable, task-aware replacement for `caffeinate`.
@@ -21,7 +21,7 @@ watching for your agent processes.
 
 ## What it does
 
-- **Task-aware.** While Claude Code, omp, or opencode is running an actual
+- **Task-aware.** While Claude Code, omp, opencode, Codex, or Gemini is running an
   interactive session, the Mac stays awake — then it's allowed to sleep again
   (after a short grace period). Detection is **presence-based, not CPU-based**,
   so a long model call that uses ~0% CPU never lets the Mac doze off mid-task.
@@ -30,6 +30,14 @@ watching for your agent processes.
 - **Timer mode (no integration needed).** Keep awake for 15 min … 8 hours, or
   **until a specific wall-clock time** — works even when locked.
 - **Manual mode.** "Keep Awake Indefinitely" toggle.
+- **Global hotkey.** Toggle keep-awake from anywhere — default **⌃⌥⌘K**, or set
+  your own via "Change Hotkey…" (Carbon hotkey, no Accessibility permission).
+  Disable it in the menu.
+- **Keep awake until a process exits.** Pick any running process from the menu;
+  Doppio holds until it quits, then releases automatically.
+- **Schedule.** Keep awake during a recurring weekly window (e.g. Mon–Fri
+  09:00–18:00, overnight windows supported). Configure it from the menu.
+- **Notifications.** Optional toast when a timer or scheduled window ends.
 - **Stays awake when locked.** Uses an IOKit `PreventUserIdleSystemSleep`
   assertion (the reliable primitive `caffeinate` wraps).
 - **Works with the lid closed.** Optional "Allow When Lid Closed" flips
@@ -95,35 +103,63 @@ The Mac is kept awake if **any** of these is true:
 manual toggle ON
   OR  timer active (not yet expired)
   OR  an enabled integration/custom process is running (+ grace period)
+  OR  a live task token exists in ~/.doppio/active
 ```
 
 When none hold, the assertion is released and (if it was set) `disablesleep` is
-restored to 0, so normal sleep resumes.
+restored to 0, so normal sleep resumes. If **Pause on Battery** is enabled and
+you are on battery, keep-awake is suppressed regardless of the above.
+
+## Signal an active task (precise integration)
+
+Process-name detection is a heuristic. For exact control, any tool can tell
+Doppio it is busy by dropping a token in `~/.doppio/active/`:
+
+```bash
+mkdir -p ~/.doppio/active
+# Tie keep-awake to a command's lifetime (auto-clears on exit or crash):
+tok=~/.doppio/active/$$; echo $$ > "$tok"; trap 'rm -f "$tok"' EXIT
+your-long-running-agentic-task
+```
+
+A token counts as **live** if its contents are a running PID, or if it was
+modified within the last 2 minutes (heartbeat). Dead/stale tokens are removed
+automatically, so a crashed tool can never pin the Mac awake forever. Wire this
+into Claude Code / omp / opencode / Codex / Gemini hooks for rock-solid keep-awake.
+
+## Battery & thermal safety
+
+- **Pause on Battery** (menu option): suppress keep-awake entirely while on
+  battery — saves charge and avoids heat build-up.
+- **Lid-closed is AC-only.** "Allow When Lid Closed" disables sleep only while
+  on AC power; on battery the lid still sleeps the Mac. Keeping a machine awake
+  under load with the lid shut on battery can overheat it in a bag.
 
 ## The lid-closed prompt
 
-Enabling **Allow When Lid Closed** runs:
+Enabling **Allow When Lid Closed** runs, via a macOS admin dialog (no password
+stored):
 
 ```
 sudo pmset -a disablesleep 1
 ```
 
-via a macOS admin-authorization dialog (no password stored). It is reverted to
-`0` when Doppio goes idle or quits. If Doppio is force-killed while it was set,
-run `sudo pmset -a disablesleep 0` once to restore normal behavior.
+It is reverted to `0` when Doppio goes idle, switches to battery, or quits. As a
+safety net Doppio writes a sentinel (`~/.doppio/lid-sleep-disabled`) while this
+is active and, on the next launch after a crash, restores `disablesleep 0`
+automatically — prompting only if sleep is in fact still disabled.
 
 ## Verify it works
 
-Headless check that the OS actually registered the assertion:
+Headless checks (build first, or run the binary inside the bundle):
 
 ```bash
-"Doppio.app/Contents/MacOS/Doppio" --selftest
-# [selftest] assertion visible to pmset: true
-# [selftest] assertion released: true
-# [selftest] PASS
+Doppio.app/Contents/MacOS/Doppio --selftest        # assertion registers + releases
+Doppio.app/Contents/MacOS/Doppio --selftest-modes  # timer/manual exclusivity, battery, signals
+Doppio.app/Contents/MacOS/Doppio --diag            # power source, live signals, current policy
 ```
 
-While the app runs you can also see its assertion live:
+While the app runs you can watch its assertion live:
 
 ```bash
 pmset -g assertions | grep Doppio
@@ -134,13 +170,18 @@ pmset -g assertions | grep Doppio
 
 ```
 Sources/Doppio/
-  main.swift            App bootstrap (accessory app) + --selftest
-  AwakeCoordinator.swift State machine: manual | timer | activity -> power state
-  PowerManager.swift     IOKit assertions + pmset disablesleep (lid closed)
-  ActivityMonitor.swift  Presence-based process detection (ps polling)
-  MenuController.swift    Menu-bar UI
+  main.swift             App bootstrap (accessory app) + --selftest/--diag
+  AwakeCoordinator.swift State machine: manual | timer | activity + battery policy
+  PowerManager.swift     IOKit assertions + pmset disablesleep + crash recovery
+  PowerSource.swift      AC/battery reader (IOKit power sources)
+  ActivityMonitor.swift  Process detection + ~/.doppio/active signal tokens
+  MenuController.swift    Menu-bar UI (status, countdown, options)
   Preferences.swift       UserDefaults-backed settings
-  SelfTest.swift          Headless assertion verification
+  Runtime.swift           Well-known ~/.doppio paths
+  Notifier.swift          Timer/schedule notifications (UserNotifications)
+  HotKey.swift            Global ⌃⌥⌘K toggle (Carbon)
+  Schedule.swift          Pure weekly-window logic
+  SelfTest.swift          Headless self-tests (--selftest, --selftest-modes, --diag)
 build.sh                 Compile + assemble Doppio.app
 Info.plist               Bundle metadata (LSUIElement = menu-bar agent)
 Resources/AppIcon.svg    Coffee-cup logo (design source)

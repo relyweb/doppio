@@ -7,13 +7,50 @@ if CommandLine.arguments.contains("--selftest") {
     SelfTest.run()
     exit(0)
 }
+if CommandLine.arguments.contains("--selftest-modes") {
+    SelfTest.runModes()
+    exit(0)
+}
+if CommandLine.arguments.contains("--diag") {
+    SelfTest.runDiag()
+    exit(0)
+}
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let coordinator = AwakeCoordinator()
     private var menuController: MenuController?
+    private lazy var notifier = Notifier { Preferences.shared.notificationsEnabled }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         menuController = MenuController(coordinator: coordinator)
+
+        // Surface coordinator events as notifications.
+        notifier.requestAuthorization()
+        coordinator.onEvent = { [weak self] event in
+            switch event {
+            case .timerExpired:
+                self?.notifier.post(title: "Doppio",
+                                    body: "Timer finished — sleep is allowed again.")
+            case .watchEnded(let name):
+                self?.notifier.post(title: "Doppio",
+                                    body: "\(name) finished — sleep is allowed again.")
+            case .scheduleEnded:
+                self?.notifier.post(title: "Doppio",
+                                    body: "Scheduled awake window ended.")
+            }
+        }
+
+        // Global toggle hotkey (⌃⌥⌘K).
+        HotKeyManager.shared.onFire = { [weak self] in
+            guard let self else { return }
+            self.coordinator.setManualIndefinite(!self.coordinator.manualIndefinite)
+        }
+        if Preferences.shared.globalHotkeyEnabled {
+            HotKeyManager.shared.register(
+                keyCode: UInt32(Preferences.shared.hotKeyCode),
+                modifiers: UInt32(Preferences.shared.hotKeyModifiers))
+        }
+
         coordinator.start()
         installSignalHandlers()
     }

@@ -107,8 +107,54 @@ final class PowerManager {
         let ok = runPrivileged("/usr/bin/pmset -a disablesleep \(value)")
         if ok {
             lidSleepDisabled = disabled
+            // Sentinel lets a crashed process restore normal sleep next launch.
+            if disabled { writeSentinel() } else { removeSentinel() }
         } else {
             NSLog("Doppio: pmset disablesleep %@ was cancelled or failed", value)
+        }
+    }
+
+    /// If a previous run set `disablesleep` and died without reverting, restore
+    /// it. Only prompts for admin when sleep is *actually* still disabled
+    /// (a reboot already clears it), so the common case is silent.
+    func recoverFromCrashIfNeeded() {
+        guard FileManager.default.fileExists(atPath: Runtime.lidSentinel.path) else { return }
+        if isSystemSleepDisabled() {
+            NSLog("Doppio: recovering from crash — restoring pmset disablesleep 0")
+            if runPrivileged("/usr/bin/pmset -a disablesleep 0") {
+                removeSentinel()
+            }
+        } else {
+            removeSentinel()   // stale sentinel (e.g. after reboot); just clean up
+        }
+    }
+
+    private func writeSentinel() {
+        Runtime.ensureDirectory(Runtime.directory)
+        try? Data().write(to: Runtime.lidSentinel)
+    }
+
+    private func removeSentinel() {
+        try? FileManager.default.removeItem(at: Runtime.lidSentinel)
+    }
+
+    /// True if `pmset -g` currently reports sleep as disabled.
+    private func isSystemSleepDisabled() -> Bool {
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
+        proc.arguments = ["-g"]
+        let out = Pipe()
+        proc.standardOutput = out
+        proc.standardError = Pipe()
+        do {
+            try proc.run()
+            let data = out.fileHandleForReading.readDataToEndOfFile()
+            proc.waitUntilExit()
+            let text = String(decoding: data, as: UTF8.self)
+            // pmset prints "SleepDisabled  1" only when it is on.
+            return text.range(of: #"SleepDisabled\s+1"#, options: .regularExpression) != nil
+        } catch {
+            return false
         }
     }
 

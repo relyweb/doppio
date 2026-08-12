@@ -2,11 +2,18 @@ import Foundation
 
 /// The result of one scan of the process table.
 struct ActivitySnapshot: Equatable {
-    /// tool label -> whether a matching process is currently running
+    /// integration label -> whether a matching process is running
     var hits: [String: Bool] = [:]
+    /// live task tokens found in ~/.doppio/active
+    var signals: [String] = []
 
-    var anyActive: Bool { hits.values.contains(true) }
-    var activeLabels: [String] { hits.filter { $0.value }.map { $0.key }.sorted() }
+    var anyProcessRunning: Bool { hits.values.contains(true) }
+    var runningLabels: [String] { hits.filter { $0.value }.map { $0.key }.sorted() }
+
+    var anyActive: Bool { anyProcessRunning || !signals.isEmpty }
+    var activeLabels: [String] {
+        runningLabels + (signals.isEmpty ? [] : ["signal(\(signals.count))"])
+    }
 }
 
 /// Polls the process table and reports which enabled agentic tools are running.
@@ -36,7 +43,8 @@ final class ActivityMonitor {
     // MARK: - Configuration
 
     /// Rebuild the matcher set from the current preferences/toggles.
-    func configure(claude: Bool, omp: Bool, opencode: Bool, custom: [String]) {
+    func configure(claude: Bool, omp: Bool, opencode: Bool,
+                   codex: Bool, gemini: Bool, custom: [String]) {
         var result: [Matcher] = []
         // A tool may be a native binary (`claude`) or launched via a runtime
         // (`node .../claude/cli.js`); the token regex handles both.
@@ -50,10 +58,16 @@ final class ActivityMonitor {
             excludeSubcommands: ["daemon", "bg-pty-host", "bg-spare", "bg-spawn"]) {
             result.append(m)
         }
-        if omp, let m = Self.makeMatcher(label: "omp", token: "omp") {
+        if omp, let m = Self.makeMatcher(label: "Oh My Pi", token: "omp") {
             result.append(m)
         }
-        if opencode, let m = Self.makeMatcher(label: "opencode", token: "opencode") {
+        if opencode, let m = Self.makeMatcher(label: "OpenCode", token: "opencode") {
+            result.append(m)
+        }
+        if codex, let m = Self.makeMatcher(label: "Codex", token: "codex") {
+            result.append(m)
+        }
+        if gemini, let m = Self.makeMatcher(label: "Gemini", token: "gemini") {
             result.append(m)
         }
         for c in custom {
@@ -120,6 +134,7 @@ final class ActivityMonitor {
                 snapshot.hits[m.label] = true
             }
         }
+        snapshot.signals = Self.liveSignals()
         DispatchQueue.main.async { [weak self] in self?.onUpdate?(snapshot) }
     }
 
@@ -141,5 +156,41 @@ final class ActivityMonitor {
             NSLog("Doppio: ps failed: %@", error.localizedDescription)
             return []
         }
+    }
+
+    // MARK: - Signal tokens (~/.doppio/active)
+
+    /// Tokens older than this whose PID (if any) is dead are ignored and
+    /// deleted, so a crashed tool can't pin the Mac awake forever.
+    static let signalTTL: TimeInterval = 120
+
+    /// A token in ~/.doppio/active is "live" if its contents name a running
+    /// PID, or if it was modified within `signalTTL`. Dead tokens are removed.
+    static func liveSignals() -> [String] {
+        let fm = FileManager.default
+        guard let entries = try? fm.contentsOfDirectory(
+            at: Runtime.activeDirectory,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]) else { return [] }
+
+        var live: [String] = []
+        let now = Date()
+        for url in entries {
+            var isLive = false
+            if let text = try? String(contentsOf: url, encoding: .utf8),
+               let pid = Int32(text.trimmingCharacters(in: .whitespacesAndNewlines)),
+               pid > 0, kill(pid, 0) == 0 {
+                isLive = true                      // owning process still alive
+            }
+            if !isLive,
+               let mtime = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
+                   .contentModificationDate,
+               now.timeIntervalSince(mtime) < signalTTL {
+                isLive = true                      // recently touched (heartbeat)
+            }
+            if isLive { live.append(url.lastPathComponent) }
+            else { try? fm.removeItem(at: url) }
+        }
+        return live.sorted()
     }
 }
