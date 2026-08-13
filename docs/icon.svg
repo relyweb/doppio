@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D89A4E"/>
+      <stop offset="0.55" stop-color="#A9662C"/>
+      <stop offset="1" stop-color="#5F3618"/>
+    </linearGradient>
+    <linearGradient id="cup" x1="372" y1="460" x2="652" y2="740" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#EDE4D8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- App-icon squircle background -->
+  <rect x="0" y="0" width="1024" height="1024" rx="230" ry="230" fill="url(#bg)"/>
+
+  <!-- Steam -->
+  <g fill="none" stroke="#FFFFFF" stroke-width="20" stroke-linecap="round" opacity="0.82">
+    <path d="M452 336 C420 304 484 276 452 244 C424 216 476 190 452 162"/>
+    <path d="M512 348 C480 312 544 282 512 246 C484 214 536 186 512 156"/>
+    <path d="M572 336 C540 304 604 276 572 244 C544 216 596 190 572 162"/>
+  </g>
+
+  <!-- Saucer (soft shadow + plate) -->
+  <ellipse cx="512" cy="784" rx="256" ry="44" fill="#000000" opacity="0.14"/>
+  <ellipse cx="512" cy="770" rx="256" ry="50" fill="url(#cup)"/>
+
+  <!-- Handle: endpoints run deep inside the cup so the body covers the joins -->
+  <path d="M600 512 C748 512 748 656 600 656" fill="none" stroke="url(#cup)" stroke-width="44" stroke-linecap="round"/>
+
+  <!-- Cup body -->
+  <path d="M372 468 L652 468 L628 690 C623 728 596 740 566 740 L458 740 C428 740 401 728 396 690 Z" fill="url(#cup)"/>
+
+  <!-- Coffee (crema ring + espresso) -->
+  <ellipse cx="512" cy="474" rx="150" ry="34" fill="#C87E33"/>
+  <ellipse cx="512" cy="471" rx="139" ry="27" fill="#3A2012"/>
+</svg>

@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Doppio — keep your Mac awake for agentic tasks</title>
+<meta name="description" content="A tiny macOS menu-bar app that keeps your Mac awake for Claude Code, omp, opencode, Codex, Gemini and other agentic tasks — even when locked or with the lid closed.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta property="og:title" content="Doppio — keep your Mac awake for agentic tasks">
+<meta property="og:description" content="Menu-bar app that keeps your Mac awake for Claude Code, omp, opencode, Codex, Gemini — even locked or lid-closed.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://relyweb.github.io/doppio/">
+<meta property="og:image" content="https://relyweb.github.io/doppio/menu.png">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root{
+    --espresso:#2a1b12; --espresso2:#43291a; --caramel:#d89a4e; --caramel-d:#b3701f;
+    --cream:#f6ece0; --ink:#241a12; --muted:#6f6152; --card:#fff; --line:#eadfce;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:#fbf7f1;-webkit-font-smoothing:antialiased;line-height:1.55}
+  a{color:var(--caramel-d);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 22px}
+  code,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  /* nav */
+  nav{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;color:var(--cream)}
+  .brand img{width:28px;height:28px;border-radius:7px}
+  nav a{color:var(--cream);opacity:.9;font-weight:500}
+
+  /* hero */
+  header{background:linear-gradient(160deg,#3a2415 0%,#6d3f1e 55%,#b3701f 120%);color:var(--cream)}
+  .hero{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;padding:34px 0 64px}
+  .hero h1{font-size:44px;line-height:1.08;letter-spacing:-.02em;margin-bottom:16px}
+  .hero p.sub{font-size:18px;opacity:.92;max-width:36ch;margin-bottom:26px}
+  .hero .shot{width:100%;border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.4)}
+  .pill{display:inline-block;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);
+    color:var(--cream);font-size:13px;padding:5px 12px;border-radius:999px;margin-bottom:22px}
+  .cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+  .btn{display:inline-block;padding:11px 18px;border-radius:10px;font-weight:600;font-size:15px}
+  .btn.primary{background:var(--cream);color:#5a3413}
+  .btn.ghost{background:rgba(255,255,255,.10);color:var(--cream);border:1px solid rgba(255,255,255,.3)}
+
+  /* copy box */
+  .cmd{margin-top:20px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.18);
+    border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .cmd code{color:var(--cream);font-size:13.5px;white-space:pre;overflow-x:auto}
+  .cmd button{background:var(--caramel);color:#3a2410;border:0;border-radius:7px;padding:7px 12px;
+    font-weight:600;cursor:pointer;font-size:13px;flex-shrink:0}
+  .cmd button:active{transform:translateY(1px)}
+
+  /* sections */
+  section{padding:64px 0}
+  h2{font-size:30px;letter-spacing:-.01em;margin-bottom:8px;text-align:center}
+  .lead{color:var(--muted);text-align:center;max-width:60ch;margin:0 auto 40px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+  .card h3{font-size:17px;margin-bottom:6px}
+  .card p{color:var(--muted);font-size:14.5px}
+  .card .ico{font-size:22px;margin-bottom:10px}
+
+  .shots{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center}
+  .shots img{width:100%;border-radius:12px;border:1px solid var(--line);box-shadow:0 16px 40px rgba(80,50,20,.14)}
+  .band{background:var(--cream)}
+
+  /* install */
+  .install pre{background:var(--espresso);color:var(--cream);border-radius:12px;padding:20px 22px;
+    overflow-x:auto;font-size:14px;line-height:1.7;max-width:640px;margin:0 auto}
+  .note{max-width:640px;margin:18px auto 0;color:var(--muted);font-size:13.5px;
+    border-left:3px solid var(--caramel);padding:6px 0 6px 14px}
+
+  footer{background:var(--espresso);color:#d9c9b6;padding:40px 0;font-size:14px}
+  footer a{color:var(--caramel)}
+  .foot{display:flex;flex-wrap:wrap;gap:18px;justify-content:space-between;align-items:center}
+
+  @media(max-width:820px){
+    .hero{grid-template-columns:1fr;gap:28px;padding-bottom:44px}
+    .hero h1{font-size:34px}.grid{grid-template-columns:1fr}.shots{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <nav>
+      <div class="brand"><img src="icon.svg" alt="Doppio icon">Doppio</div>
+      <div><a href="#install">Install</a> &nbsp;·&nbsp; <a href="https://github.com/relyweb/doppio">GitHub</a></div>
+    </nav>
+    <div class="hero">
+      <div>
+        <span class="pill">macOS menu-bar app · free &amp; open source</span>
+        <h1>Keep your Mac awake for agentic tasks.</h1>
+        <p class="sub">Doppio keeps your Mac running Claude Code, omp, opencode, Codex, Gemini and other long jobs — even when the screen is locked or the lid is closed. A reliable, task-aware replacement for <code>caffeinate</code>.</p>
+        <div class="cta">
+          <a class="btn primary" href="#install">Install with Homebrew</a>
+          <a class="btn ghost" href="https://github.com/relyweb/doppio">View on GitHub</a>
+        </div>
+        <div class="cmd">
+          <code id="cmd">brew tap relyweb/doppio &amp;&amp; brew install --cask doppio</code>
+          <button onclick="copyCmd()" id="copyBtn">Copy</button>
+        </div>
+      </div>
+      <div><img class="shot" src="menu.png" alt="Doppio menu bar with a live keep-awake countdown"></div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>Why Doppio</h2>
+    <p class="lead"><code>caffeinate</code> often still lets the Mac sleep when you lock the screen, and closing the lid always sleeps it. Doppio fixes both — and knows when your agents are actually working.</p>
+    <div class="grid">
+      <div class="card"><div class="ico">🧠</div><h3>Task-aware</h3><p>Stays awake while Claude Code, omp, opencode, Codex, Gemini — or your own processes — are running. Presence-based, so long model calls never let it doze mid-task.</p></div>
+      <div class="card"><div class="ico">⏱️</div><h3>Timer &amp; schedule</h3><p>Keep awake for a set duration or until a time, or on a recurring weekly window — with a live countdown right in the menu bar.</p></div>
+      <div class="card"><div class="ico">🔒</div><h3>Locked &amp; lid-closed</h3><p>Uses IOKit power assertions plus <code>pmset</code> so work continues while locked, and even with the lid shut (on AC power).</p></div>
+      <div class="card"><div class="ico">🔋</div><h3>Battery-aware</h3><p>Optionally pause on battery below a level you choose. Explicit keep-awake is honored down to a 15% safety floor so a task can’t drain it flat.</p></div>
+      <div class="card"><div class="ico">⌨️</div><h3>Global hotkey</h3><p>Toggle keep-awake from anywhere with a configurable shortcut, with an on-screen HUD confirming each press.</p></div>
+      <div class="card"><div class="ico">🔌</div><h3>Signal API</h3><p>Any tool can precisely tell Doppio it’s busy via <code>~/.doppio/active</code> — perfect for wiring into agent hooks.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <h2>Everything in one menu</h2>
+    <p class="lead">Quick actions in the menu bar; all configuration in a native Preferences window.</p>
+    <div class="shots">
+      <img src="menu.png" alt="Doppio menu with status and quick actions">
+      <img src="preferences.png" alt="Doppio Preferences window — General tab">
+    </div>
+  </div>
+</section>
+
+<section class="install" id="install">
+  <div class="wrap">
+    <h2>Install</h2>
+    <p class="lead">Requires macOS 13 Ventura or later. Free and open source.</p>
+    <pre>brew tap relyweb/doppio
+brew trust relyweb/doppio     <span style="color:#a98">#  one-time: trust the tap</span>
+brew install --cask doppio
+open -a Doppio</pre>
+    <p class="note">Doppio is ad-hoc signed but not yet notarized. The cask strips the download quarantine on install; if macOS still blocks it, run <code>xattr -dr com.apple.quarantine /Applications/Doppio.app</code> or approve it under System Settings → Privacy &amp; Security.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <div class="brand" style="color:#e9d8c4"><img src="icon.svg" alt="" style="width:22px;height:22px;border-radius:6px">Doppio</div>
+    <div>
+      <a href="https://github.com/relyweb/doppio">GitHub</a> &nbsp;·&nbsp;
+      <a href="https://github.com/relyweb/doppio/releases">Releases</a> &nbsp;·&nbsp;
+      <a href="https://github.com/relyweb/doppio/issues">Issues</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+function copyCmd(){
+  var t = "brew tap relyweb/doppio && brew install --cask doppio";
+  navigator.clipboard.writeText(t).then(function(){
+    var b=document.getElementById('copyBtn'); b.textContent='Copied!';
+    setTimeout(function(){b.textContent='Copy';},1600);
+  });
+}
+</script>
+</body>
+</html>
