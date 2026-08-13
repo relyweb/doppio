@@ -214,9 +214,12 @@ so users can `brew tap relyweb/doppio` without a URL. To cut a release (requires
 `gh` auth + push access to both repos):
 
 ```bash
-./release.sh 0.2.1        # builds, zips, publishes v0.2.1, bumps the tap cask
-git commit -am "doppio 0.2.1" && git push   # commit any source changes here
+git commit -am "…" && git push   # commit any source changes first
+./release.sh 0.2.1               # then cut the release
 ```
 
-`release.sh` updates `Casks/doppio.rb` in the tap repo automatically. Users then
-get it with `brew upgrade --cask doppio`.
+`release.sh` sets `CFBundleShortVersionString`/`CFBundleVersion` to the release
+version and commits + pushes that bump (so the git tag and the in-app About
+dialog match), then builds, zips, publishes the GitHub release, and updates
+`Casks/doppio.rb` in the tap repo automatically. Users get it with
+`brew upgrade --cask doppio`.

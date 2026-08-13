@@ -12,6 +12,19 @@ VERSION="${1:-}"
 REPO="relyweb/doppio"
 TAP_REPO="relyweb/homebrew-doppio"
 
+echo "==> Setting bundle version to $VERSION in Info.plist ..."
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" Info.plist
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" Info.plist
+# Commit + push the bump before tagging, so the release tag captures this
+# version (the About dialog reads CFBundleShortVersionString at runtime).
+if git diff --quiet -- Info.plist; then
+  echo "    already at $VERSION"
+else
+  git commit -q Info.plist -m "doppio $VERSION"
+  git push -q origin HEAD:main
+  echo "    committed + pushed Info.plist bump"
+fi
+
 echo "==> Building release artifact ..."
 ./build.sh >/dev/null
 mkdir -p dist; rm -f dist/Doppio.zip
