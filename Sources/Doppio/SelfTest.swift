@@ -52,10 +52,20 @@ enum SelfTest {
         c.setManualIndefinite(false)   // turn the single active mode off
         check("manual off -> nothing active", !c.manualIndefinite && !c.timerActive)
 
-        // Battery policy (pure function).
-        check("battery: AC + pause -> active", AwakeCoordinator.effectiveActive(want: true, onAC: true, pauseOnBattery: true))
-        check("battery: batt + pause -> suppressed", !AwakeCoordinator.effectiveActive(want: true, onAC: false, pauseOnBattery: true))
-        check("battery: batt + no-pause -> active", AwakeCoordinator.effectiveActive(want: true, onAC: false, pauseOnBattery: false))
+        // Battery policy: explicit intent honored to the hard floor; automatic
+        // sources yield to the soft floor. eff(explicit, auto, onAC, pct, pause, floor)
+        func eff(_ ex: Bool, _ au: Bool, _ onAC: Bool, _ pct: Int?, _ pause: Bool, _ floor: Int) -> Bool {
+            AwakeCoordinator.effectiveActive(explicitWant: ex, automaticWant: au, onAC: onAC,
+                                             percent: pct, pauseOnBattery: pause, batteryFloor: floor,
+                                             hardFloor: 15)
+        }
+        check("battery: AC always active", eff(false, true, true, 10, true, 30))
+        check("battery: pause off -> active", eff(false, true, false, 5, false, 30))
+        check("battery: unknown pct -> active", eff(false, true, false, nil, true, 30))
+        check("battery: automatic vetoed below soft floor", !eff(false, true, false, 20, true, 30))
+        check("battery: explicit honored below soft floor", eff(true, false, false, 20, true, 30))
+        check("battery: hard floor vetoes even explicit", !eff(true, false, false, 10, true, 30))
+        check("battery: above soft floor -> any active", eff(false, true, false, 50, true, 30))
 
         // Signal tokens: live PID kept, dead+stale token cleaned.
         Runtime.ensureDirectory(Runtime.activeDirectory)
@@ -103,10 +113,64 @@ enum SelfTest {
     static func runDiag() {
         let ps = PowerSource.current()
         print("power source : \(ps.onAC ? "AC" : "battery")\(ps.percent.map { " (\($0)%)" } ?? "")")
-        print("pause-on-batt: \(Preferences.shared.pauseOnBattery)")
+        print("pause-on-batt: \(Preferences.shared.pauseOnBattery) (automatic below \(Preferences.shared.batteryFloorPercent)%, all below \(AwakeCoordinator.hardBatteryFloor)%)")
         print("lid-closed   : \(Preferences.shared.allowLidClosed) (effective only on AC)")
         let signals = ActivityMonitor.liveSignals()
         print("live signals : \(signals.isEmpty ? "(none)" : signals.joined(separator: ", ")) in \(Runtime.activeDirectory.path)")
+    }
+
+    /// Integration test: confirm `PowerSource.current()` fetches a real power
+    /// state and (on a laptop) a known battery percentage, cross-checked against
+    /// `pmset -g batt`. Fails if the charge is unknown while a battery exists,
+    /// or if AC/percent disagree with pmset.
+    static func runPower() {
+        let ps = PowerSource.current()
+        print("[power] PowerSource: onAC=\(ps.onAC) percent=\(ps.percent.map { "\($0)%" } ?? "unknown")")
+
+        let batt = capture("/usr/bin/pmset", ["-g", "batt"])
+        print("[power] pmset -g batt: \(batt.trimmingCharacters(in: .whitespacesAndNewlines))")
+
+        let pmsetAC = batt.contains("'AC Power'")
+        var pmsetPct: Int?
+        if let r = batt.range(of: #"\d+%"#, options: .regularExpression) {
+            pmsetPct = Int(batt[r].dropLast())
+        }
+        let hasBattery = batt.contains("InternalBattery") || pmsetPct != nil
+
+        var ok = true
+        if ps.onAC == pmsetAC {
+            print("[power] onAC matches pmset: \(ps.onAC)")
+        } else {
+            print("[power] FAIL onAC mismatch (PowerSource=\(ps.onAC), pmset=\(pmsetAC))"); ok = false
+        }
+
+        if hasBattery {
+            if let p = ps.percent, let q = pmsetPct, abs(p - q) <= 2 {
+                print("[power] percent matches pmset (±2): \(p)% vs \(q)%")
+            } else {
+                print("[power] FAIL battery present but percent unknown/mismatched " +
+                      "(PowerSource=\(ps.percent.map { "\($0)%" } ?? "nil"), pmset=\(pmsetPct.map { "\($0)%" } ?? "nil"))")
+                ok = false
+            }
+        } else {
+            print("[power] no battery detected (desktop); percent may be nil — skipping")
+        }
+
+        print(ok ? "[power] PASS" : "[power] FAIL")
+        if !ok { exit(1) }
+    }
+
+    private static func capture(_ path: String, _ args: [String]) -> String {
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: path)
+        proc.arguments = args
+        let out = Pipe()
+        proc.standardOutput = out
+        proc.standardError = Pipe()
+        guard (try? proc.run()) != nil else { return "" }
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        proc.waitUntilExit()
+        return String(decoding: data, as: UTF8.self)
     }
 
     /// True if `pmset -g assertions` lists an assertion whose name mentions Doppio.

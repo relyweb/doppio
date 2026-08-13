@@ -14,6 +14,7 @@ final class Preferences {
         static let keepDisplayOn      = "keepDisplayOn"
         static let allowLidClosed     = "allowLidClosed"
         static let pauseOnBattery     = "pauseOnBattery"
+        static let batteryFloorPercent = "batteryFloorPercent"
         static let integrationClaude  = "integrationClaude"
         static let integrationOmp     = "integrationOmp"
         static let integrationOpencode = "integrationOpencode"
@@ -38,6 +39,7 @@ final class Preferences {
             Key.keepDisplayOn: false,
             Key.allowLidClosed: false,
             Key.pauseOnBattery: false,
+            Key.batteryFloorPercent: 30,
             Key.integrationClaude: true,
             Key.integrationOmp: true,
             Key.integrationOpencode: true,
@@ -56,6 +58,13 @@ final class Preferences {
             Key.scheduleEndMinutes: 1080,    // 18:00
             Key.scheduleWeekdays: [2, 3, 4, 5, 6],  // Mon–Fri (Calendar weekday)
         ])
+    }
+
+    /// Pause keep-awake when on battery and charge is below this percent.
+    /// Clamped to 20–90; a lower floor risks the Mac dying mid-task.
+    var batteryFloorPercent: Int {
+        get { min(90, max(20, store.integer(forKey: Key.batteryFloorPercent))) }
+        set { store.set(min(90, max(20, newValue)), forKey: Key.batteryFloorPercent) }
     }
 
     /// Keep the display awake too (otherwise only the system stays awake).

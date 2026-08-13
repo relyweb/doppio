@@ -101,12 +101,27 @@ final class AwakeCoordinator {
         manualIndefinite || timerActive || activityActive || watchActive || scheduleActive
     }
 
+    /// Sources the user turned on deliberately — honored even on low battery
+    /// (down to the hard safety floor).
+    var explicitWant: Bool { manualIndefinite || timerActive }
+
+    /// Sources that fire on their own — yielded to the soft battery floor.
+    var automaticWant: Bool { activityActive || watchActive || scheduleActive }
+
+    /// Below this charge the Mac is always allowed to sleep, even for explicit
+    /// keep-awake, so a task can never drain the battery to death.
+    static let hardBatteryFloor = 15
+
     /// Effective keep-awake state (what we actually assert) after the battery
     /// policy is applied.
     var isActive: Bool {
-        Self.effectiveActive(want: wantActive,
+        Self.effectiveActive(explicitWant: explicitWant,
+                             automaticWant: automaticWant,
                              onAC: lastPowerSource?.onAC ?? true,
-                             pauseOnBattery: prefs.pauseOnBattery)
+                             percent: lastPowerSource?.percent,
+                             pauseOnBattery: prefs.pauseOnBattery,
+                             batteryFloor: prefs.batteryFloorPercent,
+                             hardFloor: Self.hardBatteryFloor)
     }
 
     /// True when we *want* to stay awake but the battery policy is holding back.
@@ -195,6 +210,11 @@ final class AwakeCoordinator {
         monitor.pollNow()
     }
 
+    /// Restart the activity monitor to pick up a new poll interval.
+    func restartMonitor() {
+        monitor.start(interval: prefs.pollSeconds)
+    }
+
     /// Re-apply power state after an option (display/lid) changed.
     func optionsChanged() { recompute() }
 
@@ -229,11 +249,20 @@ final class AwakeCoordinator {
         onStateChange?()
     }
 
-    /// Pure battery policy (testable): on battery with "pause on battery" set,
-    /// we do not keep the Mac awake.
-    static func effectiveActive(want: Bool, onAC: Bool, pauseOnBattery: Bool) -> Bool {
-        if want && pauseOnBattery && !onAC { return false }
-        return want
+    /// Pure battery policy (testable). On AC / unknown charge / with the pause
+    /// disabled, any request keeps the Mac awake. On battery with the pause on:
+    ///   • below the hard floor  → sleep allowed (even explicit intent);
+    ///   • below the soft floor  → only *explicit* intent (manual/timer) wins;
+    ///   • at or above the floor → any request keeps it awake.
+    static func effectiveActive(explicitWant: Bool, automaticWant: Bool,
+                                onAC: Bool, percent: Int?,
+                                pauseOnBattery: Bool, batteryFloor: Int,
+                                hardFloor: Int) -> Bool {
+        let anyWant = explicitWant || automaticWant
+        guard pauseOnBattery, !onAC, let percent else { return anyWant }
+        if percent < hardFloor { return false }
+        if percent < batteryFloor { return explicitWant }
+        return anyWant
     }
 
     private static let timeFormatter: DateFormatter = {

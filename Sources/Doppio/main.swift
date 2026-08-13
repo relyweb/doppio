@@ -11,8 +11,19 @@ if CommandLine.arguments.contains("--selftest-modes") {
     SelfTest.runModes()
     exit(0)
 }
+if CommandLine.arguments.contains("--selftest-power") {
+    SelfTest.runPower()
+    exit(0)
+}
 if CommandLine.arguments.contains("--diag") {
     SelfTest.runDiag()
+    exit(0)
+}
+if let i = CommandLine.arguments.firstIndex(of: "--render-prefs"),
+   i + 2 < CommandLine.arguments.count {
+    MainActor.assumeIsolated {
+        PreferencesRenderer.render(tab: CommandLine.arguments[i + 1], to: CommandLine.arguments[i + 2])
+    }
     exit(0)
 }
 
@@ -43,7 +54,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Global toggle hotkey (⌃⌥⌘K).
         HotKeyManager.shared.onFire = { [weak self] in
             guard let self else { return }
-            self.coordinator.setManualIndefinite(!self.coordinator.manualIndefinite)
+            let on = !self.coordinator.manualIndefinite
+            self.coordinator.setManualIndefinite(on)
+            HUD.shared.show(symbol: on ? "cup.and.saucer.fill" : "cup.and.saucer",
+                            text: on ? "Keep Awake On" : "Keep Awake Off")
         }
         if Preferences.shared.globalHotkeyEnabled {
             HotKeyManager.shared.register(

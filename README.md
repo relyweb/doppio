@@ -6,6 +6,8 @@ including **while the screen is locked** and **with the lid closed**.
 
 It is a more reliable, task-aware replacement for `caffeinate`.
 
+![Doppio menu bar with a live keep-awake countdown and menu](docs/menu.png)
+
 ## Why not just `caffeinate`?
 
 `caffeinate` has two gaps that break agent workflows:
@@ -31,8 +33,8 @@ watching for your agent processes.
   **until a specific wall-clock time** — works even when locked.
 - **Manual mode.** "Keep Awake Indefinitely" toggle.
 - **Global hotkey.** Toggle keep-awake from anywhere — default **⌃⌥⌘K**, or set
-  your own via "Change Hotkey…" (Carbon hotkey, no Accessibility permission).
-  Disable it in the menu.
+  your own in Preferences (Carbon hotkey, no Accessibility permission). A brief
+  on-screen HUD ("Keep Awake On/Off") confirms each press.
 - **Keep awake until a process exits.** Pick any running process from the menu;
   Doppio holds until it quits, then releases automatically.
 - **Schedule.** Keep awake during a recurring weekly window (e.g. Mon–Fri
@@ -46,9 +48,14 @@ watching for your agent processes.
 - **Keep Display On** (optional) — otherwise only the system stays awake and the
   screen may turn off, which is usually what you want for a locked machine.
 - **Runs in the background** as a menu-bar agent (no Dock icon), with optional
-  **Start at Login**.
+  **Start at Login**. The menu shows status + quick actions; all configuration
+  lives in a **Preferences window** (⌘,).
 - **Custom processes** — add any other process name (e.g. `aider`,
   `cursor-agent`) to the watch list.
+
+All configuration lives in a native Preferences window:
+
+![Doppio Preferences — General tab](docs/preferences.png)
 
 ## Install via Homebrew
 
@@ -107,8 +114,9 @@ manual toggle ON
 ```
 
 When none hold, the assertion is released and (if it was set) `disablesleep` is
-restored to 0, so normal sleep resumes. If **Pause on Battery** is enabled and
-you are on battery, keep-awake is suppressed regardless of the above.
+restored to 0, so normal sleep resumes. With **Pause on battery when low** on and
+running on battery, automatic reasons yield below the soft floor while explicit
+intent (manual/timer) holds until a hard 15% floor (see Battery & thermal safety).
 
 ## Signal an active task (precise integration)
 
@@ -129,8 +137,12 @@ into Claude Code / omp / opencode / Codex / Gemini hooks for rock-solid keep-awa
 
 ## Battery & thermal safety
 
-- **Pause on Battery** (menu option): suppress keep-awake entirely while on
-  battery — saves charge and avoids heat build-up.
+- **Pause on battery when low** (Preferences → General): while on battery, once
+  the charge drops below the chosen floor (20–90%, default 30%) the **automatic**
+  reasons (integrations, watched process, schedule) stop keeping the Mac awake.
+  **Explicit** intent (Keep Awake Indefinitely / a timer) is still honored down
+  to a hard 15% safety floor, below which the Mac is always allowed to sleep so
+  a task can't drain the battery to death. On AC, none of this applies.
 - **Lid-closed is AC-only.** "Allow When Lid Closed" disables sleep only while
   on AC power; on battery the lid still sleeps the Mac. Keeping a machine awake
   under load with the lid shut on battery can overheat it in a bag.
@@ -155,7 +167,8 @@ Headless checks (build first, or run the binary inside the bundle):
 
 ```bash
 Doppio.app/Contents/MacOS/Doppio --selftest        # assertion registers + releases
-Doppio.app/Contents/MacOS/Doppio --selftest-modes  # timer/manual exclusivity, battery, signals
+Doppio.app/Contents/MacOS/Doppio --selftest-modes  # exclusivity, battery policy, signals, schedule
+Doppio.app/Contents/MacOS/Doppio --selftest-power  # battery % fetch, cross-checked with pmset
 Doppio.app/Contents/MacOS/Doppio --diag            # power source, live signals, current policy
 ```
 
@@ -175,11 +188,15 @@ Sources/Doppio/
   PowerManager.swift     IOKit assertions + pmset disablesleep + crash recovery
   PowerSource.swift      AC/battery reader (IOKit power sources)
   ActivityMonitor.swift  Process detection + ~/.doppio/active signal tokens
-  MenuController.swift    Menu-bar UI (status, countdown, options)
+  MenuController.swift    Menu-bar UI: status, countdown, quick actions
+  PreferencesView.swift   SwiftUI Preferences window (General/Integrations/Schedule/Advanced)
+  PreferencesWindow.swift Hosts the Preferences window (NSWindow + NSHostingController)
+  SettingsModel.swift     Bridges the window to Preferences + live coordinator
   Preferences.swift       UserDefaults-backed settings
   Runtime.swift           Well-known ~/.doppio paths
   Notifier.swift          Timer/schedule notifications (UserNotifications)
-  HotKey.swift            Global ⌃⌥⌘K toggle (Carbon)
+  HotKey.swift            Configurable global toggle hotkey (Carbon)
+  HotKeyRecorder.swift    Modal capture of a new shortcut
   Schedule.swift          Pure weekly-window logic
   SelfTest.swift          Headless self-tests (--selftest, --selftest-modes, --diag)
 build.sh                 Compile + assemble Doppio.app
