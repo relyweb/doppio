@@ -26,6 +26,13 @@ if let i = CommandLine.arguments.firstIndex(of: "--render-prefs"),
     }
     exit(0)
 }
+if let i = CommandLine.arguments.firstIndex(of: "--render-hud"),
+   i + 1 < CommandLine.arguments.count {
+    MainActor.assumeIsolated {
+        HUD.renderForTest(to: CommandLine.arguments[i + 1])
+    }
+    exit(0)
+}
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let coordinator = AwakeCoordinator()

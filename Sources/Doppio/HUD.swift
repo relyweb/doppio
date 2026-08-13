@@ -65,9 +65,7 @@ final class HUD {
         blur.material = .hudWindow
         blur.state = .active
         blur.blendingMode = .behindWindow
-        blur.wantsLayer = true
-        blur.layer?.cornerRadius = 16
-        blur.layer?.masksToBounds = true
+        blur.maskImage = HUD.roundedMask(radius: 16)
         blur.autoresizingMask = [.width, .height]
 
         imageView.translatesAutoresizingMaskIntoConstraints = false
@@ -102,5 +100,66 @@ final class HUD {
         let frame = panel.frame
         panel.setFrameOrigin(NSPoint(x: screen.frame.midX - frame.width / 2,
                                      y: screen.frame.minY + 140))
+    }
+
+    /// A resizable rounded-rectangle mask for the vibrancy view. Using
+    /// `NSVisualEffectView.maskImage` (rather than a CALayer `cornerRadius`)
+    /// clips the backdrop cleanly and lets the window shadow follow the rounded
+    /// shape, avoiding the square, light-colored corners AppKit leaves behind
+    /// when the effect view's own layer is corner-rounded directly.
+    private static func roundedMask(radius: CGFloat) -> NSImage {
+        let edge = radius * 2 + 1
+        let image = NSImage(size: NSSize(width: edge, height: edge), flipped: false) { rect in
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
+            return true
+        }
+        image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
+        image.resizingMode = .stretch
+        return image
+    }
+
+    /// Debug: render the live HUD panel content (masked vibrancy view + its
+    /// contents) composited over a saturated background and write it to `path`.
+    /// The saturated backdrop makes any un-clipped corner/edge fill obvious.
+    /// Mirrors `--render-prefs` so the HUD shape can be verified without a
+    /// window server screenshot. Vibrancy blur can't be captured offscreen, but
+    /// the mask clipping (the actual bug surface) is.
+    static func renderForTest(to path: String) {
+        let hud = HUD.shared
+        hud.imageView.image = NSImage(systemSymbolName: "cup.and.saucer.fill",
+                                      accessibilityDescription: "Keep Awake On")?
+            .withSymbolConfiguration(.init(pointSize: 26, weight: .semibold))
+        hud.imageView.contentTintColor = .labelColor
+        hud.label.stringValue = "Keep Awake On"
+        let panel = hud.ensurePanel()
+        guard let content = panel.contentView else { print("render failed"); return }
+        content.layoutSubtreeIfNeeded()
+
+        // cacheDisplay draws the view hierarchy through draw(_:), rendering the
+        // vibrancy material's fallback fill clipped by the maskImage — so the
+        // rounded shape and its corner/edge clipping are captured offscreen.
+        let viewRep = content.bitmapImageRepForCachingDisplay(in: content.bounds)!
+        content.cacheDisplay(in: content.bounds, to: viewRep)
+
+        let inset: CGFloat = 24
+        let full = NSRect(x: 0, y: 0,
+                          width: content.bounds.width + inset * 2,
+                          height: content.bounds.height + inset * 2)
+        let image = NSImage(size: full.size)
+        image.lockFocus()
+        NSColor.systemRed.setFill()
+        full.fill()
+        viewRep.draw(in: NSRect(x: inset, y: inset,
+                                width: content.bounds.width, height: content.bounds.height))
+        image.unlockFocus()
+
+        guard let tiff = image.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else {
+            print("render failed"); return
+        }
+        try? png.write(to: URL(fileURLWithPath: path))
+        print("wrote \(path)")
     }
 }
