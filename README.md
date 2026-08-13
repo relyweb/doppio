@@ -59,10 +59,10 @@ All configuration lives in a native Preferences window:
 
 ## Install via Homebrew
 
-Doppio is distributed as a Homebrew **cask** from its own tap:
+Doppio is distributed as a Homebrew **cask** via the `relyweb/doppio` tap:
 
 ```bash
-brew tap relyweb/doppio https://github.com/relyweb/doppio
+brew tap relyweb/doppio
 brew trust relyweb/doppio        # third-party taps must be trusted once
 brew install --cask doppio
 open -a Doppio                    # launches the menu-bar app
@@ -203,19 +203,20 @@ build.sh                 Compile + assemble Doppio.app
 Info.plist               Bundle metadata (LSUIElement = menu-bar agent)
 Resources/AppIcon.svg    Coffee-cup logo (design source)
 Resources/AppIcon.icns   App icon compiled from the SVG (build.sh regenerates)
-Casks/doppio.rb          Homebrew cask (this repo doubles as the tap)
-release.sh               Build, zip, bump the cask, publish the GitHub release
+release.sh                Build, zip, publish the GitHub release, bump the tap cask
 ```
 
 ## Releasing a new version
 
-This repo is its own Homebrew tap: `Casks/doppio.rb` is the cask and GitHub
-Releases host the built app. To cut a release (requires `gh` auth + push
-access):
+The app source and release artifacts live here; the Homebrew **cask** lives in a
+separate tap repo, [relyweb/homebrew-doppio](https://github.com/relyweb/homebrew-doppio),
+so users can `brew tap relyweb/doppio` without a URL. To cut a release (requires
+`gh` auth + push access to both repos):
 
 ```bash
-./release.sh 1.1.0        # builds, zips, updates the cask sha256, publishes v1.1.0
-git commit -am "doppio 1.1.0" && git push
+./release.sh 0.2.1        # builds, zips, publishes v0.2.1, bumps the tap cask
+git commit -am "doppio 0.2.1" && git push   # commit any source changes here
 ```
 
-Users then get it with `brew upgrade --cask doppio`.
+`release.sh` updates `Casks/doppio.rb` in the tap repo automatically. Users then
+get it with `brew upgrade --cask doppio`.
