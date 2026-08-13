@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 /// Headless verification that the power-assertion machinery works end to end.
 /// Acquires a system sleep assertion, confirms it is visible to the OS via
@@ -103,6 +103,18 @@ enum SelfTest {
         check("watch: dead pid pruned", !c.watched.keys.contains(999999))
         c.clearWatches()
         check("watch: cleared -> inactive", !c.watchActive)
+
+        // Menu header is width-capped so a long multi-reason status can never
+        // stretch the whole menu (regression: the menu used to grow very wide).
+        MainActor.assumeIsolated {
+            let cap = MenuController.headerContentWidth
+            let shortHeader = MenuController.statusHeaderItem("Awake — timer until 3:30 PM")
+            let longHeader = MenuController.statusHeaderItem(
+                "Awake — " + String(repeating: "running: node, python, claude · ", count: 8))
+            let ws = shortHeader.view?.frame.width ?? 0
+            let wl = longHeader.view?.frame.width ?? 0
+            check("menu: header width capped", ws == cap && wl == cap)
+        }
 
         c.shutdown()
         print("[modes] PASS")

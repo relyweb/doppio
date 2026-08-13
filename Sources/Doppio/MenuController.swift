@@ -71,9 +71,7 @@ final class MenuController: NSObject, NSMenuDelegate {
         } else {
             statusTitle = "Sleep allowed (idle)"
         }
-        let header = NSMenuItem(title: statusTitle, action: nil, keyEquivalent: "")
-        header.isEnabled = false
-        menu.addItem(header)
+        menu.addItem(Self.statusHeaderItem(statusTitle))
         menu.addItem(.separator())
 
         // ---- Manual toggle ----
@@ -135,6 +133,28 @@ final class MenuController: NSObject, NSMenuDelegate {
         menu.addItem(quit)
     }
 
+    /// Fixed-width, tail-truncating status header. Capping the width here means a
+    /// long multi-reason summary can never stretch the whole menu — it stays as
+    /// compact as the action items (the full detail lives in the tooltip).
+    static let headerContentWidth: CGFloat = 236
+
+    static func statusHeaderItem(_ title: String) -> NSMenuItem {
+        let item = NSMenuItem()
+        item.isEnabled = false
+        let inset: CGFloat = 14
+        let label = NSTextField(labelWithString: title)
+        label.font = .menuFont(ofSize: NSFont.smallSystemFontSize)
+        label.textColor = .secondaryLabelColor
+        label.usesSingleLineMode = true
+        label.lineBreakMode = .byTruncatingTail
+        label.cell?.truncatesLastVisibleLine = true
+        label.frame = NSRect(x: inset, y: 3, width: headerContentWidth - inset - 8, height: 16)
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: headerContentWidth, height: 22))
+        container.addSubview(label)
+        item.view = container
+        return item
+    }
+
     // MARK: - Actions
 
     @objc private func toggleManual() {
@@ -164,7 +184,8 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     @objc private func showAbout() {
         let alert = NSAlert()
-        alert.messageText = "Doppio"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
+        alert.messageText = "Doppio \(version)"
         alert.informativeText = """
         Keeps your Mac awake for Claude Code, omp, opencode, Codex, Gemini and \
         other agentic tasks — even when locked or with the lid closed.

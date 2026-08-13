@@ -37,7 +37,57 @@
   .hero{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;padding:34px 0 64px}
   .hero h1{font-size:44px;line-height:1.08;letter-spacing:-.02em;margin-bottom:16px}
   .hero p.sub{font-size:18px;opacity:.92;max-width:36ch;margin-bottom:26px}
-  .hero .shot{width:100%;border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.4)}
+  /* animated hero art */
+  .heroart{position:relative;width:100%;min-height:340px;display:flex;align-items:center;justify-content:center;padding:6px}
+  @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+  @keyframes floaty2{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+  .heroart .orb{position:absolute;border-radius:50%;filter:blur(40px);opacity:.5;z-index:0;pointer-events:none}
+  .heroart .orb.a{width:210px;height:210px;background:#f2b866;top:-6px;left:4%}
+  .heroart .orb.b{width:250px;height:250px;background:#7a3f14;bottom:-24px;right:0}
+  .stage{position:relative;z-index:2;width:100%;animation:floaty 8s ease-in-out infinite}
+  .win{position:relative;min-height:298px;background:linear-gradient(155deg,rgba(52,33,20,.72),rgba(34,22,14,.52));
+    border:1px solid rgba(255,255,255,.16);border-radius:16px;overflow:hidden;
+    box-shadow:0 30px 70px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08)}
+  .wm{position:absolute;left:-34px;bottom:-46px;width:224px;opacity:.09;z-index:0;pointer-events:none}
+  .mbar{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 14px;
+    background:rgba(20,13,8,.5);border-bottom:1px solid rgba(255,255,255,.08);
+    font-size:12.5px;color:rgba(246,236,224,.85)}
+  .mbar .apps{display:flex;align-items:center;gap:14px}
+  .mbar .logo{width:15px;height:15px;border-radius:4px;background:linear-gradient(160deg,#e0a75a,#8a5220)}
+  .mbar .apps b{color:var(--cream);font-weight:700}
+  .mbar .apps span{opacity:.55}
+  .cluster{display:flex;align-items:center;gap:14px;color:var(--cream);flex-wrap:nowrap;white-space:nowrap}
+  .cluster svg{display:block}
+  .cluster .mono{opacity:.8}
+  .statusitem{position:relative;display:flex;align-items:center;gap:6px;font-weight:600;
+    font-variant-numeric:tabular-nums}
+  .statusitem .count{font-size:12.5px;letter-spacing:.3px}
+  .steam{position:absolute;left:1px;top:-9px;width:18px;height:12px}
+  .steam i{position:absolute;bottom:0;width:2px;height:8px;border-radius:2px;
+    background:rgba(246,236,224,.75);animation:steam 2.4s ease-in-out infinite}
+  .steam i:nth-child(1){left:2px}
+  .steam i:nth-child(2){left:7px;animation-delay:.6s}
+  .steam i:nth-child(3){left:12px;animation-delay:1.2s}
+  @keyframes steam{0%{opacity:0;transform:translateY(3px) scaleY(.6)}
+    35%{opacity:.9}100%{opacity:0;transform:translateY(-11px) scaleY(1.25)}}
+  .menu{position:absolute;z-index:3;right:16px;top:44px;width:236px;padding:6px;
+    background:rgba(250,246,240,.94);border:1px solid rgba(0,0,0,.06);border-radius:11px;
+    box-shadow:0 22px 50px rgba(0,0,0,.42);color:#241a12;font-size:12.5px;
+    animation:floaty2 8s ease-in-out infinite}
+  .menu .mhead{padding:5px 10px 7px;color:#8a7a66;font-size:11px}
+  .menu .mi{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-radius:6px}
+  .menu .mi.sel{background:linear-gradient(90deg,var(--caramel-d),#c8842e);color:#fff}
+  .menu .mi .kbd{opacity:.5;font-size:11px}
+  .menu .msep{height:1px;background:rgba(0,0,0,.08);margin:5px 6px}
+  .badge{position:absolute;z-index:4;left:14px;bottom:16px;display:flex;align-items:center;gap:9px;
+    background:rgba(20,13,8,.6);border:1px solid rgba(255,255,255,.14);border-radius:999px;
+    padding:7px 13px;font-size:12px;color:var(--cream)}
+  .dot{width:9px;height:9px;border-radius:50%;background:#5fd08a;
+    box-shadow:0 0 0 0 rgba(95,208,138,.7);animation:pulse 2s ease-out infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(95,208,138,.7)}
+    70%{box-shadow:0 0 0 11px rgba(95,208,138,0)}100%{box-shadow:0 0 0 0 rgba(95,208,138,0)}}
+  @media(prefers-reduced-motion:reduce){.stage,.menu,.steam i,.dot{animation:none}}
+  .hero>div{min-width:0}
   .pill{display:inline-block;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);
     color:var(--cream);font-size:13px;padding:5px 12px;border-radius:999px;margin-bottom:22px}
   .cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
@@ -47,8 +97,8 @@
 
   /* copy box */
   .cmd{margin-top:20px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.18);
-    border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px}
-  .cmd code{color:var(--cream);font-size:13.5px;white-space:pre;overflow-x:auto}
+    border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
+  .cmd code{color:var(--cream);font-size:13.5px;white-space:pre;overflow-x:auto;min-width:0}
   .cmd button{background:var(--caramel);color:#3a2410;border:0;border-radius:7px;padding:7px 12px;
     font-weight:600;cursor:pointer;font-size:13px;flex-shrink:0}
   .cmd button:active{transform:translateY(1px)}
@@ -63,8 +113,10 @@
   .card p{color:var(--muted);font-size:14.5px}
   .card .ico{font-size:22px;margin-bottom:10px}
 
-  .shots{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center}
-  .shots img{width:100%;border-radius:12px;border:1px solid var(--line);box-shadow:0 16px 40px rgba(80,50,20,.14)}
+  .shots{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:stretch}
+  .frame{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;
+    box-shadow:0 16px 40px rgba(80,50,20,.14);display:flex;align-items:center;justify-content:center}
+  .frame img{width:100%;height:auto;border-radius:8px;display:block}
   .band{background:var(--cream)}
 
   /* install */
@@ -80,6 +132,15 @@
   @media(max-width:820px){
     .hero{grid-template-columns:1fr;gap:28px;padding-bottom:44px}
     .hero h1{font-size:34px}.grid{grid-template-columns:1fr}.shots{grid-template-columns:1fr}
+  }
+  @media(max-width:480px){
+    .hero h1{font-size:28px}
+    section{padding:44px 0}
+    .wrap{padding:0 16px}
+    .mbar .apps span{display:none}
+    .cluster{gap:10px}
+    .win{min-height:352px}
+    .badge{font-size:11px;padding:6px 11px}
   }
 </style>
 </head>
@@ -105,7 +166,44 @@
           <button onclick="copyCmd()" id="copyBtn">Copy</button>
         </div>
       </div>
-      <div><img class="shot" src="menu.png" alt="Doppio menu bar with a live keep-awake countdown"></div>
+      <div class="heroart" aria-label="Doppio live in the macOS menu bar with a keep-awake countdown">
+        <span class="orb a"></span><span class="orb b"></span>
+        <div class="stage">
+          <div class="win">
+            <img class="wm" src="icon.svg" alt="" aria-hidden="true">
+            <div class="mbar">
+              <div class="apps"><span class="logo"></span><b>Doppio</b><span>File</span><span>Edit</span></div>
+              <div class="cluster">
+                <span class="statusitem">
+                  <span class="steam" aria-hidden="true"><i></i><i></i><i></i></span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 9h13v4a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V9Z"/><path d="M17 10h2.4a2.5 2.5 0 0 1 0 5H17"/><path d="M4 20.5h13"/>
+                  </svg>
+                  <span class="count" id="hudCount">15:00</span>
+                </span>
+                <svg class="mono" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 8.5a15 15 0 0 1 20 0"/><path d="M5 12a10 10 0 0 1 14 0"/><path d="M8.5 15.4a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r=".6"/>
+                </svg>
+                <svg class="mono" width="22" height="17" viewBox="0 0 24 18" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                  <rect x="1.5" y="4" width="17" height="10" rx="2.5"/><rect x="3.5" y="6" width="10" height="6" rx="1" fill="currentColor" stroke="none"/><path d="M20.5 7v4" stroke-linecap="round"/>
+                </svg>
+                <span class="mono">Mon 3:16 PM</span>
+              </div>
+            </div>
+            <div class="menu" aria-hidden="true">
+              <div class="mhead">Awake — timer until 3:30 PM</div>
+              <div class="mi">Keep Awake Indefinitely</div>
+              <div class="mi sel">Keep Awake For<span class="kbd">›</span></div>
+              <div class="mi">Keep Awake Until Process Exits…</div>
+              <div class="msep"></div>
+              <div class="mi">Preferences…<span class="kbd">⌘,</span></div>
+              <div class="mi">About Doppio</div>
+              <div class="mi">Quit Doppio<span class="kbd">⌘Q</span></div>
+            </div>
+            <div class="badge"><span class="dot"></span> Keeping your Mac awake</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </header>
@@ -130,8 +228,8 @@
     <h2>Everything in one menu</h2>
     <p class="lead">Quick actions in the menu bar; all configuration in a native Preferences window.</p>
     <div class="shots">
-      <img src="menu.png" alt="Doppio menu with status and quick actions">
-      <img src="preferences.png" alt="Doppio Preferences window — General tab">
+      <div class="frame"><img src="menu.png" alt="Doppio menu with status and quick actions"></div>
+      <div class="frame"><img src="preferences.png" alt="Doppio Preferences window — General tab"></div>
     </div>
   </div>
 </section>
@@ -167,6 +265,16 @@ function copyCmd(){
     setTimeout(function(){b.textContent='Copy';},1600);
   });
 }
+(function(){
+  var el=document.getElementById('hudCount');
+  if(!el) return;
+  var t=15*60;
+  setInterval(function(){
+    t=(t<=0)?15*60:t-1;
+    var m=Math.floor(t/60), s=t%60;
+    el.textContent=m+':'+(s<10?'0':'')+s;
+  },1000);
+})();
 </script>
 </body>
 </html>
