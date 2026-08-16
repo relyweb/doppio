@@ -237,14 +237,15 @@ final class AwakeCoordinator {
         lastScheduleActive = scheduleNow
 
         lastPowerSource = PowerSource.current()
-        let onAC = lastPowerSource?.onAC ?? true
 
         power.apply(
             active: isActive,
             keepDisplayOn: prefs.keepDisplayOn,
-            // Lid-closed sleep is disabled only on AC: keeping a Mac awake with
-            // the lid shut on battery risks overheating in a bag.
-            allowLidClosed: prefs.allowLidClosed && onAC,
+            // Lid-closed sleep support is requested regardless of the live power
+            // source; PowerManager scopes it to charger (AC) via `pmset -c`, so
+            // macOS enforces AC-only and we avoid a fresh admin prompt on every
+            // plug/unplug.
+            allowLidClosed: prefs.allowLidClosed,
             reason: "Doppio: \(reasonSummary)")
         onStateChange?()
     }

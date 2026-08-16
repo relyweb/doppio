@@ -21,6 +21,10 @@ final class PowerManager {
     private var hasDisplayAssertion = false
     private(set) var lidSleepDisabled = false
 
+    // Tracks the last disablesleep transition we attempted so a cancelled or
+    // failed admin prompt is not re-issued on every reconcile tick.
+    private var lidSleepAttempted = false
+
     /// True if we currently hold any keep-awake assertion.
     var isHoldingAssertion: Bool { hasSystemAssertion || hasDisplayAssertion }
 
@@ -101,10 +105,23 @@ final class PowerManager {
     // MARK: - Lid-closed (pmset disablesleep)
 
     private func setLidSleepDisabled(_ disabled: Bool) {
-        guard disabled != lidSleepDisabled else { return }
+        guard disabled != lidSleepDisabled else {
+            // Already in the desired state; re-arm so a later genuine change
+            // can prompt again.
+            lidSleepAttempted = lidSleepDisabled
+            return
+        }
+        // Skip transitions we already tried this cycle (e.g. the user cancelled
+        // the admin dialog) so the 1 s tick doesn't hammer the prompt. We retry
+        // only once the desired value actually changes again.
+        guard disabled != lidSleepAttempted else { return }
+        lidSleepAttempted = disabled
         let value = disabled ? "1" : "0"
-        // `-a` applies to all power sources so the setting holds on battery too.
-        let ok = runPrivileged("/usr/bin/pmset -a disablesleep \(value)")
+        // `-c` scopes disablesleep to charger (AC) power only. macOS itself
+        // restores normal sleep on battery, so there is no admin prompt on every
+        // AC/battery transition and no overheating risk with the lid shut in a
+        // bag on battery.
+        let ok = runPrivileged("/usr/bin/pmset -c disablesleep \(value)")
         if ok {
             lidSleepDisabled = disabled
             // Sentinel lets a crashed process restore normal sleep next launch.
@@ -119,13 +136,13 @@ final class PowerManager {
     /// (a reboot already clears it), so the common case is silent.
     func recoverFromCrashIfNeeded() {
         guard FileManager.default.fileExists(atPath: Runtime.lidSentinel.path) else { return }
-        if isSystemSleepDisabled() {
+        if isChargerSleepDisabled() {
             NSLog("Doppio: recovering from crash — restoring pmset disablesleep 0")
-            if runPrivileged("/usr/bin/pmset -a disablesleep 0") {
+            if runPrivileged("/usr/bin/pmset -c disablesleep 0") {
                 removeSentinel()
             }
         } else {
-            removeSentinel()   // stale sentinel (e.g. after reboot); just clean up
+            removeSentinel()   // stale sentinel (already cleared); just clean up
         }
     }
 
@@ -138,11 +155,13 @@ final class PowerManager {
         try? FileManager.default.removeItem(at: Runtime.lidSentinel)
     }
 
-    /// True if `pmset -g` currently reports sleep as disabled.
-    private func isSystemSleepDisabled() -> Bool {
+    /// True if `pmset -g custom` reports sleep disabled for charger (AC) power —
+    /// the scope we set. Reading `custom` rather than the live view detects a
+    /// lingering setting even while currently running on battery.
+    private func isChargerSleepDisabled() -> Bool {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
-        proc.arguments = ["-g"]
+        proc.arguments = ["-g", "custom"]
         let out = Pipe()
         proc.standardOutput = out
         proc.standardError = Pipe()
@@ -151,8 +170,19 @@ final class PowerManager {
             let data = out.fileHandleForReading.readDataToEndOfFile()
             proc.waitUntilExit()
             let text = String(decoding: data, as: UTF8.self)
-            // pmset prints "SleepDisabled  1" only when it is on.
-            return text.range(of: #"SleepDisabled\s+1"#, options: .regularExpression) != nil
+            // Settings are grouped under "Battery Power:" and "AC Power:"
+            // headers; SleepDisabled only appears when it is set. Scan just the
+            // AC section.
+            var inAC = false
+            for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
+                let line = String(rawLine)
+                if line.hasPrefix("AC Power:") { inAC = true; continue }
+                if line.hasSuffix("Power:") { inAC = false; continue }
+                if inAC, line.range(of: #"SleepDisabled\s+1"#, options: .regularExpression) != nil {
+                    return true
+                }
+            }
+            return false
         } catch {
             return false
         }

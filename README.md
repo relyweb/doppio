@@ -43,8 +43,10 @@ watching for your agent processes.
 - **Stays awake when locked.** Uses an IOKit `PreventUserIdleSystemSleep`
   assertion (the reliable primitive `caffeinate` wraps).
 - **Works with the lid closed.** Optional "Allow When Lid Closed" flips
-  `pmset disablesleep` (one admin prompt) and reverts it the moment the Mac is
-  allowed to sleep again or the app quits.
+  `pmset -c disablesleep` (charger-scoped) with a single admin prompt per
+  keep-awake session, and reverts it the moment the Mac is allowed to sleep
+  again or the app quits. Because the setting is charger-scoped, macOS handles
+  the AC-only rule itself — plugging or unplugging never re-prompts.
 - **Keep Display On** (optional) — otherwise only the system stays awake and the
   screen may turn off, which is usually what you want for a locked machine.
 - **Runs in the background** as a menu-bar agent (no Dock icon), with optional
@@ -143,9 +145,12 @@ into Claude Code / omp / opencode / Codex / Gemini hooks for rock-solid keep-awa
   **Explicit** intent (Keep Awake Indefinitely / a timer) is still honored down
   to a hard 15% safety floor, below which the Mac is always allowed to sleep so
   a task can't drain the battery to death. On AC, none of this applies.
-- **Lid-closed is AC-only.** "Allow When Lid Closed" disables sleep only while
-  on AC power; on battery the lid still sleeps the Mac. Keeping a machine awake
-  under load with the lid shut on battery can overheat it in a bag.
+- **Lid-closed is AC-only.** "Allow When Lid Closed" is applied as a
+  charger-scoped `pmset -c disablesleep`, so it takes effect only while on AC
+  power; on battery the lid still sleeps the Mac. Keeping a machine awake under
+  load with the lid shut on battery can overheat it in a bag. macOS enforces
+  this per-power-source, so switching between AC and battery needs no extra
+  admin prompt.
 
 ## The lid-closed prompt
 
@@ -153,13 +158,15 @@ Enabling **Allow When Lid Closed** runs, via a macOS admin dialog (no password
 stored):
 
 ```
-sudo pmset -a disablesleep 1
+sudo pmset -c disablesleep 1
 ```
 
-It is reverted to `0` when Doppio goes idle, switches to battery, or quits. As a
-safety net Doppio writes a sentinel (`~/.doppio/lid-sleep-disabled`) while this
-is active and, on the next launch after a crash, restores `disablesleep 0`
-automatically — prompting only if sleep is in fact still disabled.
+The `-c` scope means macOS only disables sleep while on charger (AC) power, so
+AC/battery transitions never trigger another prompt. It is reverted to `0` when
+Doppio goes idle or quits. As a safety net Doppio writes a sentinel
+(`~/.doppio/lid-sleep-disabled`) while this is active and, on the next launch
+after a crash, restores `disablesleep 0` automatically — prompting only if the
+charger scope is in fact still disabled.
 
 ## Verify it works
 
