@@ -16,6 +16,10 @@ if CommandLine.arguments.contains("--selftest-power") {
     SelfTest.runPower()
     exit(0)
 }
+if CommandLine.arguments.contains("--selftest-resume") {
+    SelfTest.runResume()
+    exit(0)
+}
 if CommandLine.arguments.contains("--diag") {
     SelfTest.runDiag()
     exit(0)
@@ -79,6 +83,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         setUpHotkey()
 
+        // Auto-resume selected Claude Code sessions after a usage-limit reset.
+        AutoResumer.shared.onWaitingChange = { [weak self] count in
+            self?.coordinator.setAutoResumeWaiting(count)
+        }
+        AutoResumer.shared.onEvent = { [weak self] event in
+            guard let self else { return }
+            switch event {
+            case .resumed(let p):
+                self.notifier.post(title: "Doppio", body: "Resumed \(p) — your limit reset.")
+            case .needsInteraction(let p):
+                self.notifier.post(title: "Doppio",
+                                   body: "\(p) needs interaction to continue — open Claude Code.")
+            case .authRequired:
+                self.notifier.post(title: "Doppio", body: "Sign in to Claude to auto-resume sessions.")
+            case .cliMissing:
+                self.notifier.post(title: "Doppio", body: "Claude CLI not found — auto-resume is off.")
+            case .failed(let p):
+                self.notifier.post(title: "Doppio", body: "Couldn't auto-resume \(p).")
+            }
+        }
+        AutoResumer.shared.applyPreferences()
+
         coordinator.start()
         installSignalHandlers()
     }
@@ -112,6 +138,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        AutoResumer.shared.shutdown()
         coordinator.shutdown()
     }
 

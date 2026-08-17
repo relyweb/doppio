@@ -105,7 +105,8 @@ final class AwakeCoordinator {
     }
 
     var wantActive: Bool {
-        manualIndefinite || timerActive || activityActive || watchActive || scheduleActive
+        manualIndefinite || timerActive || activityActive || watchActive
+            || scheduleActive || autoResumeActive
     }
 
     /// Sources the user turned on deliberately — honored even on low battery
@@ -113,7 +114,7 @@ final class AwakeCoordinator {
     var explicitWant: Bool { manualIndefinite || timerActive }
 
     /// Sources that fire on their own — yielded to the soft battery floor.
-    var automaticWant: Bool { activityActive || watchActive || scheduleActive }
+    var automaticWant: Bool { activityActive || watchActive || scheduleActive || autoResumeActive }
 
     /// Below this charge the Mac is always allowed to sleep, even for explicit
     /// keep-awake, so a task can never drain the battery to death.
@@ -136,6 +137,17 @@ final class AwakeCoordinator {
     var onBattery: Bool { !(lastPowerSource?.onAC ?? true) }
     var batteryPercent: Int? { lastPowerSource?.percent }
 
+    /// Number of Claude Code sessions AutoResumer is waiting to resume. While
+    /// >0 it contributes an *automatic* keep-awake reason (yields to the battery
+    /// floor) so the reset scheduler survives system idle.
+    private(set) var autoResumeWaiting = 0
+    var autoResumeActive: Bool { autoResumeWaiting > 0 }
+    func setAutoResumeWaiting(_ count: Int) {
+        guard count != autoResumeWaiting else { return }
+        autoResumeWaiting = count
+        recompute()
+    }
+
     /// Human-readable explanation for the menu and the assertion name.
     var reasonSummary: String {
         var parts: [String] = []
@@ -153,6 +165,7 @@ final class AwakeCoordinator {
             parts.append("waiting on " + watched.values.sorted().joined(separator: ", "))
         }
         if scheduleActive { parts.append("schedule") }
+        if autoResumeActive { parts.append("auto-resume (\(autoResumeWaiting))") }
         if parts.isEmpty && activityActive { parts.append("grace period") }
         return parts.isEmpty ? "idle" : parts.joined(separator: " · ")
     }

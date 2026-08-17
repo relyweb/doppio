@@ -1,6 +1,6 @@
 # Design — Auto-Resume for Claude Code (CLI-only MVP)
 
-Status: Draft for review · Date: 2026-08-17 · Target: Doppio (Apache-2.0)
+Status: Accepted — implemented on branch `feat/claude-auto-resume` (pending review/merge) · Date: 2026-08-17 · Target: Doppio (Apache-2.0)
 
 ## 1. Goal
 

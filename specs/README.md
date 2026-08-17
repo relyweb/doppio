@@ -25,4 +25,4 @@ the code and `AGENTS.md` for current behavior.
 
 | Date | Spec | Status |
 |------|------|--------|
-| 2026-08-17 | [Claude Code auto-resume (CLI-only MVP)](2026-08-17-claude-code-auto-resume-design.md) | Draft |
+| 2026-08-17 | [Claude Code auto-resume (CLI-only MVP)](2026-08-17-claude-code-auto-resume-design.md) | Accepted |
