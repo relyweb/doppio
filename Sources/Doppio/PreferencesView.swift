@@ -174,7 +174,7 @@ struct AutoResumeSettings: View {
                     Button("Refresh") { model.refreshSessions() }.controlSize(.small)
                 }
                 if model.availableSessions.isEmpty {
-                    Text("No recent Claude Code sessions found.")
+                    Text("No Claude Code sessions active in the last 24 hours.")
                         .font(.caption).foregroundColor(.secondary)
                 } else {
                     ScrollView {
