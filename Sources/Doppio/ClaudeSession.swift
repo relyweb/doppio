@@ -35,9 +35,13 @@ enum ClaudeSessionStore {
             .appendingPathComponent(".claude/projects", isDirectory: true)
     }
 
-    /// Most-recently-active sessions across all projects, newest first.
-    static func recent(limit: Int = 40) -> [ClaudeSession] {
+    /// Sessions active within `within` (default 24h), newest first. Claude keeps
+    /// a transcript for every past conversation, so we window by last-write time
+    /// to surface only recently-active sessions (not the whole archive) and skip
+    /// reading files that are already too old.
+    static func recent(limit: Int = 40, within: TimeInterval = 24 * 3600) -> [ClaudeSession] {
         let fm = FileManager.default
+        let cutoff = Date().addingTimeInterval(-within)
         guard let projects = try? fm.contentsOfDirectory(
             at: projectsDirectory,
             includingPropertiesForKeys: [.contentModificationDateKey],
@@ -52,6 +56,9 @@ enum ClaudeSessionStore {
                 includingPropertiesForKeys: [.contentModificationDateKey],
                 options: [.skipsHiddenFiles]) else { continue }
             for file in files where file.pathExtension == "jsonl" {
+                let mtime = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?
+                    .contentModificationDate ?? .distantPast
+                guard mtime > cutoff else { continue }   // skip old files without opening them
                 if let s = session(from: file) { sessions.append(s) }
             }
         }
