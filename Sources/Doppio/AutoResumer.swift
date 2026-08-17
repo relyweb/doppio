@@ -12,7 +12,7 @@ import Foundation
 final class AutoResumer {
 
     static let shared = AutoResumer()
-    private init() {}
+    init() {}   // `shared` is the app instance; tests construct their own.
 
     /// Surfaced to the app for notifications.
     enum Event: Equatable {
@@ -27,6 +27,12 @@ final class AutoResumer {
     /// (drives the keep-awake reason + menu status).
     var onWaitingChange: ((Int) -> Void)?
     var onEvent: ((Event) -> Void)?
+
+    /// Performs one resume. Overridable so tests can drive the scheduler with
+    /// stubbed outcomes instead of invoking the real CLI.
+    var resumeProvider: (ClaudeSession, String) -> ResumeOutcome = {
+        ClaudeCLI.resume($0, message: $1)
+    }
 
     private struct Pending { let session: ClaudeSession; var attempts: Int; var nextAttempt: Date }
 
@@ -86,22 +92,33 @@ final class AutoResumer {
 
     private func stop() { timer?.cancel(); timer = nil }
 
+    private func earliestDue(at now: Date) -> Pending? {
+        pending.values.filter { $0.nextAttempt <= now }
+            .min { $0.nextAttempt < $1.nextAttempt }
+    }
+
     private func tick() {
-        guard !inFlight else { return }
-        let now = Date()
-        guard let due = pending.values
-            .filter({ $0.nextAttempt <= now })
-            .min(by: { $0.nextAttempt < $1.nextAttempt }) else { return }
+        guard !inFlight, let due = earliestDue(at: Date()) else { return }
         attempt(due)
     }
 
     private func attempt(_ p: Pending) {
         inFlight = true
-        let session = p.session, msg = message
+        let session = p.session, msg = message, provider = resumeProvider
         queue.async { [weak self] in
-            let outcome = ClaudeCLI.resume(session, message: msg)
+            let outcome = provider(session, msg)
             DispatchQueue.main.async { self?.handle(outcome, for: session) }
         }
+    }
+
+    /// Test hook: synchronously attempt the earliest-due session (via
+    /// `resumeProvider`) and apply its outcome, bypassing the timer and
+    /// background queue. Returns the attempted session id, or nil if none is
+    /// due at `now`. Uses the same selection logic as `tick()`.
+    func stepForTesting(now: Date) -> String? {
+        guard let due = earliestDue(at: now) else { return nil }
+        handle(resumeProvider(due.session, message), for: due.session)
+        return due.session.id
     }
 
     private func handle(_ outcome: ResumeOutcome, for session: ClaudeSession) {

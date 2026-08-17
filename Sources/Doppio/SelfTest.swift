@@ -283,6 +283,31 @@ enum SelfTest {
         let tok = ClaudeSession(id: "abc", cwd: "/p/q", lastActivity: .distantPast).token
         check("session: token round-trips", ClaudeSession.from(token: tok)?.cwd == "/p/q")
 
+        // Engine: multiple watched sessions are tracked independently and
+        // attempted one at a time (serialized), earliest-due first; a resumed
+        // session is dropped, a rate-limited one backs off and retries later.
+        let ar = AutoResumer()
+        var calls: [String] = []
+        ar.resumeProvider = { session, _ in
+            calls.append(session.id)
+            return session.id == "B" ? .resumed("ok") : .rateLimited(reset: nil)
+        }
+        let a = ClaudeSession(id: "A", cwd: "/p/a", lastActivity: .distantPast)
+        let b = ClaudeSession(id: "B", cwd: "/p/b", lastActivity: .distantPast)
+        ar.configure(enabled: true, sessions: [a, b], message: "go", pollSeconds: 60)
+        check("engine: two sessions tracked", ar.waitingCount == 2)
+
+        let t0 = Date()
+        let s1 = ar.stepForTesting(now: t0)
+        check("engine: step 1 attempts exactly one", s1 != nil && calls.count == 1)
+        let s2 = ar.stepForTesting(now: t0)
+        check("engine: step 2 attempts the other (serialized)", s2 != nil && s2 != s1 && calls.count == 2)
+        check("engine: resumed B dropped, rate-limited A remains", ar.waitingCount == 1)
+        check("engine: A backs off — not due at t0", ar.stepForTesting(now: t0) == nil)
+        check("engine: A due again after backoff window", ar.stepForTesting(now: t0.addingTimeInterval(600)) == "A")
+        ar.shutdown()
+        check("engine: shutdown clears pending", ar.waitingCount == 0)
+
         print("[resume] PASS")
     }
 }
