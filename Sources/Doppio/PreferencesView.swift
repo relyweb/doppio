@@ -156,7 +156,7 @@ struct AutoResumeSettings: View {
     @ObservedObject var model: SettingsModel
 
     var body: some View {
-        Form {
+        VStack(alignment: .leading, spacing: 12) {
             Toggle("Auto-resume Claude Code after a usage-limit reset",
                    isOn: $model.autoResumeEnabled)
 
@@ -178,19 +178,21 @@ struct AutoResumeSettings: View {
                         .font(.caption).foregroundColor(.secondary)
                 } else {
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: 4) {
                             ForEach(model.availableSessions) { s in
                                 Toggle(isOn: watchedBinding(s)) {
-                                    VStack(alignment: .leading, spacing: 0) {
-                                        Text(s.project)
+                                    HStack(spacing: 6) {
+                                        Text(s.project).lineLimit(1)
                                         Text(Self.relative(s.lastActivity))
                                             .font(.caption2).foregroundColor(.secondary)
                                     }
                                 }
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(6)
                     }
-                    .frame(maxHeight: 130)
+                    .frame(maxHeight: 150)
                     .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.secondary.opacity(0.3)))
                 }
             }
@@ -199,7 +201,10 @@ struct AutoResumeSettings: View {
             Text("Continues headlessly with your existing Claude permissions; sessions that need tool approval will report that instead of running. Not affiliated with Anthropic.")
                 .font(.caption).foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
     }
 
