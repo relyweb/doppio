@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import Foundation
 import UserNotifications
 
@@ -18,7 +19,9 @@ final class Notifier {
         guard available else { return }
         UNUserNotificationCenter.current()
             .requestAuthorization(options: [.alert, .sound]) { [weak self] granted, _ in
-                self?.authorized = granted
+                // `authorized` is read on the main thread in post(); write it
+                // there too so there is no cross-thread access.
+                DispatchQueue.main.async { self?.authorized = granted }
             }
     }
 

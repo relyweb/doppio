@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import AppKit
 
 // A headless self-test used by build.sh / CI to prove the IOKit power
@@ -18,6 +19,16 @@ if CommandLine.arguments.contains("--selftest-power") {
 if CommandLine.arguments.contains("--diag") {
     SelfTest.runDiag()
     exit(0)
+}
+if CommandLine.arguments.contains("--install-lid-helper") {
+    let ok = LidSleepHelper.shared.install()
+    print("lid helper install: \(ok ? "ok" : "failed/cancelled") (\(LidSleepHelper.plistPath))")
+    exit(ok ? 0 : 1)
+}
+if CommandLine.arguments.contains("--uninstall-lid-helper") {
+    let ok = LidSleepHelper.shared.uninstall()
+    print("lid helper uninstall: \(ok ? "ok" : "failed/cancelled")")
+    exit(ok ? 0 : 1)
 }
 if let i = CommandLine.arguments.firstIndex(of: "--render-prefs"),
    i + 2 < CommandLine.arguments.count {
@@ -66,14 +77,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             HUD.shared.show(symbol: on ? "cup.and.saucer.fill" : "cup.and.saucer",
                             text: on ? "Keep Awake On" : "Keep Awake Off")
         }
-        if Preferences.shared.globalHotkeyEnabled {
-            HotKeyManager.shared.register(
-                keyCode: UInt32(Preferences.shared.hotKeyCode),
-                modifiers: UInt32(Preferences.shared.hotKeyModifiers))
-        }
+        setUpHotkey()
 
         coordinator.start()
         installSignalHandlers()
+    }
+
+    /// Register the global hotkey at launch. `RegisterEventHotKey` can fail if
+    /// the combination is momentarily held by another login item during the
+    /// login storm, so one failure is retried shortly. A persistent conflict is
+    /// surfaced (log + HUD) instead of being silently ignored; the preference is
+    /// left as intent so it self-heals once the conflict clears, and the
+    /// Preferences "Change…" flow lets the user pick another combination.
+    private func setUpHotkey() {
+        guard Preferences.shared.globalHotkeyEnabled else { return }
+        if registerHotkey() { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            guard let self,
+                  Preferences.shared.globalHotkeyEnabled,
+                  !HotKeyManager.shared.isRegistered else { return }
+            if !self.registerHotkey() {
+                NSLog("Doppio: global hotkey could not be registered (in use by another app)")
+                HUD.shared.show(symbol: "exclamationmark.triangle.fill",
+                                text: "Shortcut in use")
+            }
+        }
+    }
+
+    @discardableResult
+    private func registerHotkey() -> Bool {
+        HotKeyManager.shared.register(
+            keyCode: UInt32(Preferences.shared.hotKeyCode),
+            modifiers: UInt32(Preferences.shared.hotKeyModifiers))
     }
 
     func applicationWillTerminate(_ notification: Notification) {

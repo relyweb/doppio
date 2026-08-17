@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import SwiftUI
 
 /// Tabbed Preferences UI. All persistence/side effects live in `SettingsModel`.
@@ -19,7 +20,7 @@ struct PreferencesView: View {
 
 struct GeneralSettings: View {
     @ObservedObject var model: SettingsModel
-    private let floors = Array(stride(from: 20, through: 90, by: 10))
+    private let floors = Array(stride(from: 30, through: 90, by: 10))
 
     var body: some View {
         Form {

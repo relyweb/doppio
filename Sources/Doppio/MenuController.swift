@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import AppKit
 
 /// Builds and drives the menu-bar (`NSStatusItem`) UI. The menu stays lean —

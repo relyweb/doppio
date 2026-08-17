@@ -1,4 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
 import SwiftUI
+import AppKit
 import ServiceManagement
 
 /// Bridges the Preferences window (SwiftUI) to `Preferences` (UserDefaults) and
@@ -14,12 +16,30 @@ final class SettingsModel: ObservableObject {
     @Published var keepDisplayOn = false      { didSet { commit { prefs.keepDisplayOn = keepDisplayOn; coordinator.optionsChanged() } } }
     @Published var pauseOnBattery = false      { didSet { commit { prefs.pauseOnBattery = pauseOnBattery; coordinator.optionsChanged() } } }
     @Published var batteryFloor = 30           { didSet { commit { prefs.batteryFloorPercent = batteryFloor; coordinator.optionsChanged() } } }
-    @Published var allowLidClosed = false      { didSet { commit { prefs.allowLidClosed = allowLidClosed; coordinator.optionsChanged() } } }
+    @Published var allowLidClosed = false      { didSet { commit {
+        prefs.allowLidClosed = allowLidClosed
+        if !coordinator.lidClosedSettingChanged() {
+            // Admin prompt cancelled/failed — revert to the real state so the
+            // toggle never claims a helper that isn't installed (or vice versa).
+            prefs.allowLidClosed = oldValue
+            loading = true; allowLidClosed = oldValue; loading = false
+        }
+    } } }
     @Published var notificationsEnabled = true { didSet { commit { prefs.notificationsEnabled = notificationsEnabled } } }
     @Published var startAtLogin = false        { didSet { commit { setLogin(startAtLogin) } } }
 
     // Hotkey
-    @Published var hotkeyEnabled = true        { didSet { commit { prefs.globalHotkeyEnabled = hotkeyEnabled; applyHotkey() } } }
+    @Published var hotkeyEnabled = true        { didSet { commit {
+        prefs.globalHotkeyEnabled = hotkeyEnabled
+        let ok = applyHotkey()
+        if hotkeyEnabled && !ok {
+            // Registration failed (combo already taken) — revert so the toggle
+            // never claims a shortcut that isn't actually active.
+            prefs.globalHotkeyEnabled = false
+            loading = true; hotkeyEnabled = false; loading = false
+            Self.warnHotkeyUnavailable(hotkeyDisplay)
+        }
+    } } }
     @Published var hotkeyDisplay = ""
 
     // Integrations
@@ -78,13 +98,20 @@ final class SettingsModel: ObservableObject {
 
     func changeHotkey() {
         guard let hk = HotKeyRecorder.record(current: hotkeyDisplay) else { return }
-        prefs.hotKeyCode = Int(hk.keyCode)
-        prefs.hotKeyModifiers = Int(hk.modifiers)
-        prefs.hotKeyLabel = hk.label
-        hotkeyDisplay = HotKeyManager.display(modifiers: hk.modifiers, label: hk.label)
-        prefs.globalHotkeyEnabled = true
-        loading = true; hotkeyEnabled = true; loading = false
-        applyHotkey()
+        // register() unregisters the current hotkey before trying the new one,
+        // so only persist the new combo if it actually registers; otherwise
+        // restore the previous shortcut and tell the user.
+        if HotKeyManager.shared.register(keyCode: hk.keyCode, modifiers: hk.modifiers) {
+            prefs.hotKeyCode = Int(hk.keyCode)
+            prefs.hotKeyModifiers = Int(hk.modifiers)
+            prefs.hotKeyLabel = hk.label
+            prefs.globalHotkeyEnabled = true
+            hotkeyDisplay = HotKeyManager.display(modifiers: hk.modifiers, label: hk.label)
+            loading = true; hotkeyEnabled = true; loading = false
+        } else {
+            Self.warnHotkeyUnavailable(HotKeyManager.display(modifiers: hk.modifiers, label: hk.label))
+            applyHotkey()   // restore the previously registered shortcut
+        }
     }
 
     // MARK: - Helpers
@@ -100,13 +127,26 @@ final class SettingsModel: ObservableObject {
         coordinator.reconfigureMonitor()
     }
 
-    private func applyHotkey() {
+    @discardableResult
+    private func applyHotkey() -> Bool {
         if prefs.globalHotkeyEnabled {
-            HotKeyManager.shared.register(keyCode: UInt32(prefs.hotKeyCode),
-                                          modifiers: UInt32(prefs.hotKeyModifiers))
-        } else {
-            HotKeyManager.shared.unregister()
+            return HotKeyManager.shared.register(keyCode: UInt32(prefs.hotKeyCode),
+                                                 modifiers: UInt32(prefs.hotKeyModifiers))
         }
+        HotKeyManager.shared.unregister()
+        return true
+    }
+
+    /// Tell the user a shortcut couldn't be registered (already claimed by
+    /// another app or the system).
+    private static func warnHotkeyUnavailable(_ combo: String) {
+        let alert = NSAlert()
+        alert.messageText = "Shortcut Unavailable"
+        alert.informativeText = "\(combo) is already in use by another app or the system. Pick a different combination."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
     }
 
     private static func isLoginEnabled() -> Bool {

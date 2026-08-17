@@ -1,5 +1,8 @@
 # Doppio
 
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+![Platform: macOS 13+](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey.svg)
+
 A tiny macOS menu-bar app that keeps your Mac awake for long-running **agentic
 tasks** — Claude Code, omp, opencode, Codex, Gemini, or anything else —
 including **while the screen is locked** and **with the lid closed**.
@@ -42,11 +45,13 @@ watching for your agent processes.
 - **Notifications.** Optional toast when a timer or scheduled window ends.
 - **Stays awake when locked.** Uses an IOKit `PreventUserIdleSystemSleep`
   assertion (the reliable primitive `caffeinate` wraps).
-- **Works with the lid closed.** Optional "Allow When Lid Closed" flips
-  `pmset -c disablesleep` (charger-scoped) with a single admin prompt per
-  keep-awake session, and reverts it the moment the Mac is allowed to sleep
-  again or the app quits. Because the setting is charger-scoped, macOS handles
-  the AC-only rule itself — plugging or unplugging never re-prompts.
+- **Works with the lid closed (on AC).** Optional "Allow When Lid Closed"
+  installs a tiny **root helper daemon** with a single admin prompt. Because
+  `pmset disablesleep` is a *global* macOS setting that also defeats the
+  critical-battery emergency sleep, the daemon enforces it **only while on AC
+  power** and forces normal sleep back on the moment the Mac is on battery — all
+  on its own, with no further prompts. So even an *unattended* unplug (a charger
+  slipping out overnight) can never drain the battery to a deep discharge.
 - **Keep Display On** (optional) — otherwise only the system stays awake and the
   screen may turn off, which is usually what you want for a locked machine.
 - **Runs in the background** as a menu-bar agent (no Dock icon), with optional
@@ -74,7 +79,8 @@ Upgrade / remove:
 
 ```bash
 brew upgrade --cask doppio
-brew uninstall --cask doppio     # add --zap to also delete preferences
+brew uninstall --cask doppio     # also unloads/removes the root lid helper
+#   add --zap to additionally delete preferences and ~/.doppio
 ```
 
 > The app is ad-hoc signed, not notarized (no Apple Developer ID). The cask's
@@ -118,7 +124,7 @@ manual toggle ON
 When none hold, the assertion is released and (if it was set) `disablesleep` is
 restored to 0, so normal sleep resumes. With **Pause on battery when low** on and
 running on battery, automatic reasons yield below the soft floor while explicit
-intent (manual/timer) holds until a hard 15% floor (see Battery & thermal safety).
+intent (manual/timer) holds until a hard 20% floor (see Battery & thermal safety).
 
 ## Signal an active task (precise integration)
 
@@ -140,33 +146,44 @@ into Claude Code / omp / opencode / Codex / Gemini hooks for rock-solid keep-awa
 ## Battery & thermal safety
 
 - **Pause on battery when low** (Preferences → General): while on battery, once
-  the charge drops below the chosen floor (20–90%, default 30%) the **automatic**
+  the charge drops below the chosen floor (30–90%, default 30%) the **automatic**
   reasons (integrations, watched process, schedule) stop keeping the Mac awake.
   **Explicit** intent (Keep Awake Indefinitely / a timer) is still honored down
-  to a hard 15% safety floor, below which the Mac is always allowed to sleep so
+  to a hard 20% safety floor, below which the Mac is always allowed to sleep so
   a task can't drain the battery to death. On AC, none of this applies.
-- **Lid-closed is AC-only.** "Allow When Lid Closed" is applied as a
-  charger-scoped `pmset -c disablesleep`, so it takes effect only while on AC
-  power; on battery the lid still sleeps the Mac. Keeping a machine awake under
-  load with the lid shut on battery can overheat it in a bag. macOS enforces
-  this per-power-source, so switching between AC and battery needs no extra
-  admin prompt.
+- **Pause on battery when low** defaults **on** — the battery floor above is
+  active out of the box.
+- **Lid-closed is AC-only, enforced by a root daemon.** "Allow When Lid Closed"
+  relies on `pmset disablesleep`, a *global* setting that also disables macOS's
+  own critical-battery emergency sleep. A tiny root LaunchDaemon
+  (`com.doppio.keepawake.lidhelper`) owns it and holds it only on AC, forcing
+  normal sleep back on battery within seconds — with no prompt at the dangerous
+  moment. So a lid-closed task on battery can never overheat in a bag or drain
+  to a deep discharge, even fully unattended.
 
-## The lid-closed prompt
+## The lid-closed helper
 
-Enabling **Allow When Lid Closed** runs, via a macOS admin dialog (no password
-stored):
+Enabling **Allow When Lid Closed** installs a small root LaunchDaemon via one
+macOS admin dialog (no password stored):
 
-```
-sudo pmset -c disablesleep 1
-```
+- `/Library/LaunchDaemons/com.doppio.keepawake.lidhelper.plist`
+- `/Library/Application Support/Doppio/lid-helper.sh`
 
-The `-c` scope means macOS only disables sleep while on charger (AC) power, so
-AC/battery transitions never trigger another prompt. It is reverted to `0` when
-Doppio goes idle or quits. As a safety net Doppio writes a sentinel
-(`~/.doppio/lid-sleep-disabled`) while this is active and, on the next launch
-after a crash, restores `disablesleep 0` automatically — prompting only if the
-charger scope is in fact still disabled.
+`disablesleep` is a global setting — it is *not* power-source-scoped (the pmset
+`-c`/`-b`/`-a` flags do not restrict it, and it never appears in `pmset -g
+custom`), so Doppio can't safely toggle it per power source itself. Instead the
+daemon runs every 10 s and enforces one rule:
+
+> `disablesleep` is `1` **only** when Doppio's desired flag
+> (`~/.doppio/lid-desired`) is a *fresh* "1" **and** the Mac is on AC power. On
+> battery, with no flag, a stale flag (Doppio not running), or "0", it forces
+> `disablesleep 0`.
+
+Doppio just writes the flag (no prompt) and rewrites it as a liveness heartbeat.
+Because the daemon — not the app — flips `disablesleep`, an unattended AC→battery
+transition needs no prompt: the daemon restores normal sleep on its own. Turning
+the setting off (or `Doppio --uninstall-lid-helper`) removes the daemon and
+resets `disablesleep 0`.
 
 ## Verify it works
 
@@ -192,7 +209,8 @@ pmset -g assertions | grep Doppio
 Sources/Doppio/
   main.swift             App bootstrap (accessory app) + --selftest/--diag
   AwakeCoordinator.swift State machine: manual | timer | activity + battery policy
-  PowerManager.swift     IOKit assertions + pmset disablesleep + crash recovery
+  PowerManager.swift     IOKit keep-awake assertions (system/display)
+  LidSleepHelper.swift   Root LaunchDaemon for safe lid-closed (AC-only) sleep
   PowerSource.swift      AC/battery reader (IOKit power sources)
   ActivityMonitor.swift  Process detection + ~/.doppio/active signal tokens
   MenuController.swift    Menu-bar UI: status, countdown, quick actions
@@ -222,7 +240,7 @@ so users can `brew tap relyweb/doppio` without a URL. To cut a release (requires
 
 ```bash
 git commit -am "…" && git push   # commit any source changes first
-./release.sh 0.2.1               # then cut the release
+./release.sh 0.3.0               # then cut the release
 ```
 
 `release.sh` sets `CFBundleShortVersionString`/`CFBundleVersion` to the release
@@ -230,3 +248,12 @@ version and commits + pushes that bump (so the git tag and the in-app About
 dialog match), then builds, zips, publishes the GitHub release, and updates
 `Casks/doppio.rb` in the tap repo automatically. Users get it with
 `brew upgrade --cask doppio`.
+
+## License
+
+Doppio is open source under the [Apache License 2.0](LICENSE) (see also
+[`NOTICE`](NOTICE)). Copyright 2026 RELYWEB TECHNOLOGIES PRIVATE LIMITED.
+
+Contributions are welcome — by submitting one you agree to license it under the
+same terms (Apache-2.0). Please report security issues privately per
+[`SECURITY.md`](SECURITY.md), not via public issues.

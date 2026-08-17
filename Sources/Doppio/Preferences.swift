@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import Foundation
 
 /// User-configurable settings persisted in `UserDefaults`.
@@ -38,7 +39,7 @@ final class Preferences {
         store.register(defaults: [
             Key.keepDisplayOn: false,
             Key.allowLidClosed: false,
-            Key.pauseOnBattery: false,
+            Key.pauseOnBattery: true,
             Key.batteryFloorPercent: 30,
             Key.integrationClaude: true,
             Key.integrationOmp: true,
@@ -61,10 +62,11 @@ final class Preferences {
     }
 
     /// Pause keep-awake when on battery and charge is below this percent.
-    /// Clamped to 20–90; a lower floor risks the Mac dying mid-task.
+    /// Clamped to 30–90; a lower floor risks the Mac dying mid-task and is not
+    /// meaningful below the hard floor.
     var batteryFloorPercent: Int {
-        get { min(90, max(20, store.integer(forKey: Key.batteryFloorPercent))) }
-        set { store.set(min(90, max(20, newValue)), forKey: Key.batteryFloorPercent) }
+        get { min(90, max(30, store.integer(forKey: Key.batteryFloorPercent))) }
+        set { store.set(min(90, max(30, newValue)), forKey: Key.batteryFloorPercent) }
     }
 
     /// Keep the display awake too (otherwise only the system stays awake).

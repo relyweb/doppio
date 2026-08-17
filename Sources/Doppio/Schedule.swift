@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import Foundation
 
 /// Pure logic for the recurring weekly keep-awake window. Kept separate from

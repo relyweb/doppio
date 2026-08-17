@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import AppKit
 
 /// A small, transient on-screen indicator (like the macOS volume HUD) shown

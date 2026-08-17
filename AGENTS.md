@@ -32,10 +32,16 @@ Entry point → decision → power state:
    `~/.doppio/active` token exists) — applies the battery policy, and reconciles
    them into one desired power state.
 3. `PowerManager` — applies that state via IOKit assertions
-   (`PreventUserIdleSystemSleep`, optional `PreventUserIdleDisplaySleep`) and,
-   for lid-closed, `pmset disablesleep` through one admin `osascript` prompt. It
-   writes a sentinel (`~/.doppio/lid-sleep-disabled`) so a crash can be recovered
-   on next launch. `apply(...)` is idempotent — only real transitions do work.
+   (`PreventUserIdleSystemSleep`, optional `PreventUserIdleDisplaySleep`). These
+   never override critical-battery sleep. Lid-closed (clamshell) needs `pmset
+   disablesleep`, a *global* setting that also defeats the critical-battery
+   emergency sleep, so it is owned by `LidSleepHelper`, not applied inline.
+   `apply(...)` is idempotent — only real transitions do work.
+4. `LidSleepHelper` — installs a root LaunchDaemon (one admin prompt) that
+   enforces `disablesleep 1` only when a fresh desired flag
+   (`~/.doppio/lid-desired`) is set *and* the Mac is on AC; it forces
+   `disablesleep 0` on battery/stale/idle. This closes the deep-discharge hole:
+   an unattended AC→battery transition needs no prompt.
 
 Inputs feeding the coordinator: `ActivityMonitor` (process presence +
 `~/.doppio/active` tokens), `PowerSource` (AC/battery + charge % via IOKit),
@@ -100,15 +106,17 @@ Watch the live assertion while the app runs: `pmset -g assertions | grep Doppio`
 - Settings persist in `UserDefaults` via `Preferences`; runtime IPC uses simple,
   scriptable `~/.doppio` paths defined once in `Runtime` — never hardcode those
   paths elsewhere.
-- Privileged actions (`pmset disablesleep`) go through `PowerManager`'s single
-  `osascript` admin prompt and must always be reverted on idle/quit, with a
-  sentinel for crash recovery.
+- Privileged actions (`pmset disablesleep`) are owned by `LidSleepHelper`'s root
+  LaunchDaemon, installed via a single `osascript` admin prompt. The daemon
+  self-enforces "AC only" and always clears `disablesleep` on battery, so no
+  privileged toggle happens on the app's hot path.
 
 ## Important Files
 
 - `Sources/Doppio/main.swift` — bootstrap, headless flag dispatch, `AppDelegate`.
 - `Sources/Doppio/AwakeCoordinator.swift` — the keep-awake state machine.
-- `Sources/Doppio/PowerManager.swift` — IOKit assertions + `pmset` + crash recovery.
+- `Sources/Doppio/PowerManager.swift` — IOKit keep-awake assertions (system/display).
+- `Sources/Doppio/LidSleepHelper.swift` — privileged lid-closed daemon (AC-only).
 - `Sources/Doppio/ActivityMonitor.swift` — process detection + `~/.doppio/active` tokens.
 - `Sources/Doppio/Runtime.swift` — well-known `~/.doppio` paths.
 - `Sources/Doppio/SelfTest.swift` — headless self-tests behind the CLI flags.

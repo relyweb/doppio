@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import Foundation
 
 /// Central brain. Combines three independent reasons the Mac should stay awake
@@ -38,7 +39,13 @@ final class AwakeCoordinator {
     // MARK: - Lifecycle
 
     func start() {
-        power.recoverFromCrashIfNeeded()
+        // Clean up any pre-daemon state, then install/remove the privileged lid
+        // helper to match the setting. If a needed install is cancelled at
+        // launch, don't keep claiming the feature is on.
+        LidSleepHelper.shared.migrateLegacyState()
+        if !LidSleepHelper.shared.setEnabled(prefs.allowLidClosed), prefs.allowLidClosed {
+            prefs.allowLidClosed = false
+        }
         reconfigureMonitor()
         monitor.onUpdate = { [weak self] snap in
             guard let self else { return }
@@ -110,7 +117,7 @@ final class AwakeCoordinator {
 
     /// Below this charge the Mac is always allowed to sleep, even for explicit
     /// keep-awake, so a task can never drain the battery to death.
-    static let hardBatteryFloor = 15
+    static let hardBatteryFloor = 20
 
     /// Effective keep-awake state (what we actually assert) after the battery
     /// policy is applied.
@@ -215,8 +222,18 @@ final class AwakeCoordinator {
         monitor.start(interval: prefs.pollSeconds)
     }
 
-    /// Re-apply power state after an option (display/lid) changed.
+    /// Re-apply power state after an option (display/schedule) changed.
     func optionsChanged() { recompute() }
+
+    /// The "Allow When Lid Closed" setting changed: install or remove the
+    /// privileged helper to match, then re-apply. Returns false if the admin
+    /// prompt was cancelled, so the UI can revert the toggle.
+    @discardableResult
+    func lidClosedSettingChanged() -> Bool {
+        let ok = LidSleepHelper.shared.setEnabled(prefs.allowLidClosed)
+        recompute()
+        return ok
+    }
 
     // MARK: - Core reconcile
 
@@ -241,10 +258,10 @@ final class AwakeCoordinator {
         power.apply(
             active: isActive,
             keepDisplayOn: prefs.keepDisplayOn,
-            // Lid-closed sleep support is requested regardless of the live power
-            // source; PowerManager scopes it to charger (AC) via `pmset -c`, so
-            // macOS enforces AC-only and we avoid a fresh admin prompt on every
-            // plug/unplug.
+            // Lid-closed is delegated to LidSleepHelper's privileged daemon,
+            // which enforces the "AC only" rule autonomously (see that file).
+            // We publish pure intent; the daemon forces sleep back on when on
+            // battery, so an unattended unplug can never deep-discharge the Mac.
             allowLidClosed: prefs.allowLidClosed,
             reason: "Doppio: \(reasonSummary)")
         onStateChange?()

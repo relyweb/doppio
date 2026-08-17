@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import AppKit
 
 /// Headless verification that the power-assertion machinery works end to end.
@@ -57,15 +58,33 @@ enum SelfTest {
         func eff(_ ex: Bool, _ au: Bool, _ onAC: Bool, _ pct: Int?, _ pause: Bool, _ floor: Int) -> Bool {
             AwakeCoordinator.effectiveActive(explicitWant: ex, automaticWant: au, onAC: onAC,
                                              percent: pct, pauseOnBattery: pause, batteryFloor: floor,
-                                             hardFloor: 15)
+                                             hardFloor: AwakeCoordinator.hardBatteryFloor)
         }
-        check("battery: AC always active", eff(false, true, true, 10, true, 30))
-        check("battery: pause off -> active", eff(false, true, false, 5, false, 30))
-        check("battery: unknown pct -> active", eff(false, true, false, nil, true, 30))
-        check("battery: automatic vetoed below soft floor", !eff(false, true, false, 20, true, 30))
-        check("battery: explicit honored below soft floor", eff(true, false, false, 20, true, 30))
-        check("battery: hard floor vetoes even explicit", !eff(true, false, false, 10, true, 30))
-        check("battery: above soft floor -> any active", eff(false, true, false, 50, true, 30))
+        let soft = 30, hard = AwakeCoordinator.hardBatteryFloor   // 30 and 20
+        check("battery: AC always active", eff(false, true, true, hard - 5, true, soft))
+        check("battery: pause off -> active", eff(false, true, false, hard - 10, false, soft))
+        check("battery: unknown pct -> active", eff(false, true, false, nil, true, soft))
+        check("battery: automatic vetoed below soft floor", !eff(false, true, false, hard + 5, true, soft))
+        check("battery: explicit honored below soft floor", eff(true, false, false, hard + 5, true, soft))
+        check("battery: hard floor vetoes even explicit", !eff(true, false, false, hard - 5, true, soft))
+        check("battery: above soft floor -> any active", eff(false, true, false, soft + 20, true, soft))
+
+        // Lid-closed safety rule (enforced by the privileged LidSleepHelper
+        // daemon). disablesleep must be held ONLY when Doppio wants it, its
+        // heartbeat is fresh, AND the Mac is on AC — otherwise the battery can
+        // deep-discharge.
+        func lid(_ want: Bool, _ fresh: Bool, _ ac: Bool) -> Bool {
+            LidSleepHelper.shouldDisableSleep(desired: want, heartbeatFresh: fresh, onAC: ac)
+        }
+        check("lid: want + fresh + AC -> disable", lid(true, true, true))
+        check("lid: want + fresh + battery -> NOT", !lid(true, true, false))
+        check("lid: want + stale + AC -> NOT", !lid(true, false, true))
+        check("lid: idle -> NOT", !lid(false, true, true))
+        // The generated daemon script must encode the same guards.
+        let script = LidSleepHelper.scriptContents()
+        check("lid: script gates on AC power", script.contains("'AC Power'"))
+        check("lid: script has freshness window", script.contains("FRESH=\(LidSleepHelper.freshSeconds)"))
+        check("lid: script clears sleep otherwise", script.contains("pmset -a disablesleep"))
 
         // Signal tokens: live PID kept, dead+stale token cleaned.
         Runtime.ensureDirectory(Runtime.activeDirectory)
@@ -126,7 +145,7 @@ enum SelfTest {
         let ps = PowerSource.current()
         print("power source : \(ps.onAC ? "AC" : "battery")\(ps.percent.map { " (\($0)%)" } ?? "")")
         print("pause-on-batt: \(Preferences.shared.pauseOnBattery) (automatic below \(Preferences.shared.batteryFloorPercent)%, all below \(AwakeCoordinator.hardBatteryFloor)%)")
-        print("lid-closed   : \(Preferences.shared.allowLidClosed) (effective only on AC)")
+        print("lid-closed   : \(Preferences.shared.allowLidClosed) (helper installed: \(LidSleepHelper.shared.isInstalled); enforced on AC only by \(LidSleepHelper.label))")
         let signals = ActivityMonitor.liveSignals()
         print("live signals : \(signals.isEmpty ? "(none)" : signals.joined(separator: ", ")) in \(Runtime.activeDirectory.path)")
     }

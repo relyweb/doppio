@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import Foundation
 
 /// The result of one scan of the process table.
@@ -76,7 +77,10 @@ final class ActivityMonitor {
                 result.append(m)
             }
         }
-        matchers = result
+        // `matchers` is read by scan() on `queue`; assign it there too so the
+        // serial queue is the single owner (configure() is called from the main
+        // thread, scan() runs on `queue` — a plain store would be a data race).
+        queue.async { [weak self] in self?.matchers = result }
     }
 
     /// Build a matcher that fires when a command line contains the token as a
