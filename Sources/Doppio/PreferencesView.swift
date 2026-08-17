@@ -11,6 +11,7 @@ struct PreferencesView: View {
             IntegrationsSettings(model: model).tabItem { Label("Integrations", systemImage: "cpu") }
             ScheduleSettings(model: model).tabItem { Label("Schedule", systemImage: "calendar") }
             AdvancedSettings(model: model).tabItem { Label("Advanced", systemImage: "slider.horizontal.3") }
+            AutoResumeSettings(model: model).tabItem { Label("Auto-Resume", systemImage: "arrow.clockwise") }
         }
         .frame(width: 470, height: 360)
     }
@@ -149,6 +150,70 @@ struct AdvancedSettings: View {
     }
 }
 
+// MARK: - Auto-Resume (Claude Code)
+
+struct AutoResumeSettings: View {
+    @ObservedObject var model: SettingsModel
+
+    var body: some View {
+        Form {
+            Toggle("Auto-resume Claude Code after a usage-limit reset",
+                   isOn: $model.autoResumeEnabled)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Resume message").font(.caption).foregroundColor(.secondary)
+                TextField("Continue where you left off.", text: $model.autoResumeMessage)
+                    .textFieldStyle(.roundedBorder)
+            }
+            .disabled(!model.autoResumeEnabled)
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Sessions to resume").font(.caption).foregroundColor(.secondary)
+                    Spacer()
+                    Button("Refresh") { model.refreshSessions() }.controlSize(.small)
+                }
+                if model.availableSessions.isEmpty {
+                    Text("No recent Claude Code sessions found.")
+                        .font(.caption).foregroundColor(.secondary)
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 2) {
+                            ForEach(model.availableSessions) { s in
+                                Toggle(isOn: watchedBinding(s)) {
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        Text(s.project)
+                                        Text(Self.relative(s.lastActivity))
+                                            .font(.caption2).foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 130)
+                    .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.secondary.opacity(0.3)))
+                }
+            }
+            .disabled(!model.autoResumeEnabled)
+
+            Text("Continues headlessly with your existing Claude permissions; sessions that need tool approval will report that instead of running. Not affiliated with Anthropic.")
+                .font(.caption).foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding()
+    }
+
+    private func watchedBinding(_ s: ClaudeSession) -> Binding<Bool> {
+        Binding(get: { model.watchedSessionIDs.contains(s.id) },
+                set: { model.setWatched(s, $0) })
+    }
+
+    private static func relative(_ d: Date) -> String {
+        let f = RelativeDateTimeFormatter(); f.unitsStyle = .abbreviated
+        return f.localizedString(for: d, relativeTo: Date())
+    }
+}
+
 // MARK: - Headless render (QA)
 
 /// Renders a single Preferences tab to a PNG via `ImageRenderer` — used by the
@@ -165,6 +230,7 @@ enum PreferencesRenderer {
         case "integrations": content = AnyView(IntegrationsSettings(model: model))
         case "schedule":     content = AnyView(ScheduleSettings(model: model))
         case "advanced":     content = AnyView(AdvancedSettings(model: model))
+        case "auto-resume":  content = AnyView(AutoResumeSettings(model: model))
         default:             content = AnyView(PreferencesView(model: model))
         }
         let view = content

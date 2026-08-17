@@ -148,6 +148,8 @@ enum SelfTest {
         print("lid-closed   : \(Preferences.shared.allowLidClosed) (helper installed: \(LidSleepHelper.shared.isInstalled); enforced on AC only by \(LidSleepHelper.label))")
         let signals = ActivityMonitor.liveSignals()
         print("live signals : \(signals.isEmpty ? "(none)" : signals.joined(separator: ", ")) in \(Runtime.activeDirectory.path)")
+        let cli = ClaudeCLI.resolveBinary().map { "found (\($0))" } ?? "not found"
+        print("auto-resume  : \(Preferences.shared.autoResumeEnabled) · watched \(Preferences.shared.autoResumeSessions.count) · discovered \(ClaudeSessionStore.recent().count) recent Claude sessions · claude \(cli)")
     }
 
     /// Integration test: confirm `PowerSource.current()` fetches a real power
@@ -221,5 +223,66 @@ enum SelfTest {
         } catch {
             return false
         }
+    }
+
+    /// Auto-resume: pure classifier, backoff, and session parsing.
+    static func runResume() {
+        func check(_ name: String, _ cond: Bool) {
+            print("[resume] \(name): \(cond ? "ok" : "FAIL")")
+            if !cond { exit(1) }
+        }
+        func isFailed(_ o: ResumeOutcome) -> Bool { if case .failed = o { return true }; return false }
+        func isResumed(_ o: ResumeOutcome) -> Bool { if case .resumed = o { return true }; return false }
+
+        // Classifier over the real `--output-format json` envelope shape.
+        check("classify: success -> resumed",
+              ClaudeCLI.classify(exitCode: 0,
+                stdout: #"{"is_error":false,"result":"done","session_id":"x"}"#, stderr: "")
+                == .resumed("done"))
+        check("classify: usage limit -> rateLimited",
+              ClaudeCLI.classify(exitCode: 1,
+                stdout: #"{"is_error":true,"result":"Claude AI usage limit reached; resets at 4:30pm"}"#,
+                stderr: "") == .rateLimited(reset: nil))
+        check("classify: permission -> needsPermission",
+              ClaudeCLI.classify(exitCode: 1,
+                stdout: #"{"is_error":true,"result":"This tool requires approval / permission"}"#,
+                stderr: "") == .needsPermission)
+        check("classify: auth -> authRequired",
+              ClaudeCLI.classify(exitCode: 1,
+                stdout: #"{"is_error":true,"result":"Please sign in to continue"}"#,
+                stderr: "") == .authRequired)
+        check("classify: missing session -> sessionNotFound",
+              ClaudeCLI.classify(exitCode: 1,
+                stdout: #"{"is_error":true,"result":"No conversation found with that session id"}"#,
+                stderr: "") == .sessionNotFound)
+        check("classify: unknown error -> failed",
+              isFailed(ClaudeCLI.classify(exitCode: 1,
+                stdout: #"{"is_error":true,"result":"boom"}"#, stderr: "")))
+        check("classify: no JSON, exit 0 -> resumed",
+              isResumed(ClaudeCLI.classify(exitCode: 0, stdout: "OK", stderr: "")))
+        check("classify: no JSON, limit in stderr -> rateLimited",
+              ClaudeCLI.classify(exitCode: 1, stdout: "", stderr: "429 too many requests")
+                == .rateLimited(reset: nil))
+
+        // Backoff: attempt 1 == base, then doubling, capped.
+        check("backoff: attempt 1 == base", AutoResumer.backoffDelay(attempt: 1, base: 60, cap: 300) == 60)
+        check("backoff: attempt 3 doubles", AutoResumer.backoffDelay(attempt: 3, base: 60, cap: 300) == 240)
+        check("backoff: capped", AutoResumer.backoffDelay(attempt: 8, base: 60, cap: 300) == 300)
+
+        // Session parsing reads only cwd + filename + mtime.
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("doppio-resume-\(UUID().uuidString).jsonl")
+        let rec = #"{"type":"user","cwd":"/Users/x/proj-name","sessionId":"abc","timestamp":"t"}"# + "\n"
+        try? rec.write(to: tmp, atomically: true, encoding: .utf8)
+        let parsed = ClaudeSessionStore.session(from: tmp)
+        check("session: cwd parsed", parsed?.cwd == "/Users/x/proj-name")
+        check("session: id is filename stem", parsed?.id == tmp.deletingPathExtension().lastPathComponent)
+        check("session: project is cwd basename", parsed?.project == "proj-name")
+        try? FileManager.default.removeItem(at: tmp)
+
+        let tok = ClaudeSession(id: "abc", cwd: "/p/q", lastActivity: .distantPast).token
+        check("session: token round-trips", ClaudeSession.from(token: tok)?.cwd == "/p/q")
+
+        print("[resume] PASS")
     }
 }

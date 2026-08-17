@@ -16,7 +16,7 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate, NSToolbarDe
     private static let contentSize = NSSize(width: 480, height: 380)
 
     private enum Tab: String, CaseIterable {
-        case general, integrations, schedule, advanced
+        case general, integrations, schedule, advanced, autoResume
 
         var title: String {
             switch self {
@@ -24,6 +24,7 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate, NSToolbarDe
             case .integrations: return "Integrations"
             case .schedule: return "Schedule"
             case .advanced: return "Advanced"
+            case .autoResume: return "Auto-Resume"
             }
         }
         var symbol: String {
@@ -32,6 +33,7 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate, NSToolbarDe
             case .integrations: return "cpu"
             case .schedule: return "calendar"
             case .advanced: return "slider.horizontal.3"
+            case .autoResume: return "arrow.clockwise"
             }
         }
         var id: NSToolbarItem.Identifier { .init(rawValue) }
@@ -92,6 +94,7 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate, NSToolbarDe
         case .integrations: IntegrationsSettings(model: model)
         case .schedule:     ScheduleSettings(model: model)
         case .advanced:     AdvancedSettings(model: model)
+        case .autoResume:   AutoResumeSettings(model: model)
         }
     }
 
