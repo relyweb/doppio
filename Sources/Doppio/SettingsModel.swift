@@ -72,6 +72,9 @@ final class SettingsModel: ObservableObject {
         prefs.autoResumeMessage = autoResumeMessage; reconfigureAutoResume() } } }
     @Published var autoResumePollSeconds = 60.0 { didSet { commit {
         prefs.autoResumePollSeconds = autoResumePollSeconds; reconfigureAutoResume() } } }
+    /// Picker recency window in hours (12/24/48); re-filters the list on change.
+    @Published var autoResumeWindowHours = 24 { didSet { commit {
+        prefs.autoResumeWindowHours = autoResumeWindowHours; refreshSessions() } } }
     /// Recently-active sessions available to pick.
     @Published var availableSessions: [ClaudeSession] = []
     /// Ids of sessions selected for auto-resume.
@@ -110,15 +113,18 @@ final class SettingsModel: ObservableObject {
         autoResumeEnabled = prefs.autoResumeEnabled
         autoResumeMessage = prefs.autoResumeMessage
         autoResumePollSeconds = prefs.autoResumePollSeconds
+        autoResumeWindowHours = prefs.autoResumeWindowHours
         let persisted = prefs.autoResumeSessions.compactMap(ClaudeSession.from(token:))
         for s in persisted { sessionByID[s.id] = s }
         watchedSessionIDs = Set(persisted.map(\.id))
         refreshSessions()
     }
 
-    /// Refresh the pickable session list from `~/.claude`.
+    /// Refresh the pickable session list from `~/.claude`, windowed by the
+    /// selected recency (hours).
     func refreshSessions() {
-        availableSessions = ClaudeSessionStore.recent()
+        availableSessions = ClaudeSessionStore.recent(
+            within: TimeInterval(autoResumeWindowHours * 3600))
         for s in availableSessions { sessionByID[s.id] = s }
     }
 
