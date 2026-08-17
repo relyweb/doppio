@@ -37,6 +37,7 @@ final class Preferences {
         static let autoResumeSessions = "autoResumeSessions"
         static let autoResumeMessage  = "autoResumeMessage"
         static let autoResumePollSeconds = "autoResumePollSeconds"
+        static let autoResumeWindowHours = "autoResumeWindowHours"
     }
 
     private init() {
@@ -66,6 +67,7 @@ final class Preferences {
             Key.autoResumeSessions: [String](),
             Key.autoResumeMessage: "Continue where you left off.",
             Key.autoResumePollSeconds: 60.0,
+            Key.autoResumeWindowHours: 24,
         ])
     }
 
@@ -213,5 +215,11 @@ final class Preferences {
     var autoResumePollSeconds: TimeInterval {
         get { min(600, max(30, store.double(forKey: Key.autoResumePollSeconds))) }
         set { store.set(min(600, max(30, newValue)), forKey: Key.autoResumePollSeconds) }
+    }
+
+    /// Only list sessions active within this many hours in the picker (12/24/48).
+    var autoResumeWindowHours: Int {
+        get { let v = store.integer(forKey: Key.autoResumeWindowHours); return v == 0 ? 24 : v }
+        set { store.set(newValue, forKey: Key.autoResumeWindowHours) }
     }
 }

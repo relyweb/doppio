@@ -171,10 +171,16 @@ struct AutoResumeSettings: View {
                 HStack {
                     Text("Sessions to resume").font(.caption).foregroundColor(.secondary)
                     Spacer()
+                    Picker("", selection: $model.autoResumeWindowHours) {
+                        Text("12h").tag(12)
+                        Text("24h").tag(24)
+                        Text("48h").tag(48)
+                    }
+                    .pickerStyle(.segmented).labelsHidden().fixedSize()
                     Button("Refresh") { model.refreshSessions() }.controlSize(.small)
                 }
                 if model.availableSessions.isEmpty {
-                    Text("No Claude Code sessions active in the last 24 hours.")
+                    Text("No Claude Code sessions active in the last \(model.autoResumeWindowHours) hours.")
                         .font(.caption).foregroundColor(.secondary)
                 } else {
                     ScrollView {
