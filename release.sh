@@ -27,7 +27,26 @@ fi
 
 echo "==> Building release artifact ..."
 ./build.sh >/dev/null
+
+echo "==> Signing with Developer ID Application ..."
+SIGN_IDENTITY="Developer ID Application: RELYWEB TECHNOLOGIES PRIVATE LIMITED (74XS8F97LG)"
+codesign --force --deep --options runtime --timestamp \
+  --sign "$SIGN_IDENTITY" Doppio.app
+codesign --verify --deep --strict --verbose=2 Doppio.app
+
+echo "==> Notarizing with Apple Notary Service ..."
 mkdir -p dist; rm -f dist/Doppio.zip
+ditto -c -k --keepParent Doppio.app dist/Doppio.zip
+xcrun notarytool submit dist/Doppio.zip \
+  --keychain-profile "doppio-notary" \
+  --wait
+
+echo "==> Stapling notarization ticket to Doppio.app ..."
+xcrun stapler staple Doppio.app
+spctl --assess --type exec --verbose Doppio.app
+
+# Re-zip with the stapled ticket so the offline ticket travels with the release archive
+rm -f dist/Doppio.zip
 ditto -c -k --keepParent Doppio.app dist/Doppio.zip
 SHA=$(shasum -a 256 dist/Doppio.zip | awk '{print $1}')
 echo "    version=$VERSION sha256=$SHA"
