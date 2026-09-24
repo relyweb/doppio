@@ -9,6 +9,11 @@ cd "$(dirname "$0")"
 VERSION="${1:-}"
 [[ -n "$VERSION" ]] || { echo "usage: $0 <version>   (e.g. 0.2.1)" >&2; exit 1; }
 
+# Validate version format (e.g., 0.2.1 or 1.0.0-beta) to prevent injection or syntax errors
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+  echo "error: version '$VERSION' must be in X.Y.Z format (e.g. 0.2.1)" >&2
+  exit 1
+fi
 REPO="relyweb/doppio"
 TAP_REPO="relyweb/homebrew-doppio"
 
