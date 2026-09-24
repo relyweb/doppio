@@ -45,7 +45,7 @@ Entry point → decision → power state:
 
 Inputs feeding the coordinator: `ActivityMonitor` (process presence +
 `~/.doppio/active` tokens), `PowerSource` (AC/battery + charge % via IOKit),
-`Schedule` (pure weekly-window logic), and `Preferences` (UserDefaults). Outputs:
+`Schedule` (pure weekly-window logic), `AutoResumer` (Claude Code limit-reset tracking), and `Preferences` (UserDefaults). Outputs:
 `PowerManager` (system state) and `Notifier` (UserNotifications toasts).
 
 ## Key Directories
@@ -118,6 +118,7 @@ Watch the live assertion while the app runs: `pmset -g assertions | grep Doppio`
 - `Sources/Doppio/PowerManager.swift` — IOKit keep-awake assertions (system/display).
 - `Sources/Doppio/LidSleepHelper.swift` — privileged lid-closed daemon (AC-only).
 - `Sources/Doppio/ActivityMonitor.swift` — process detection + `~/.doppio/active` tokens.
+- `Sources/Doppio/AutoResumer.swift` — Claude Code usage-limit reset tracking.
 - `Sources/Doppio/Runtime.swift` — well-known `~/.doppio` paths.
 - `Sources/Doppio/SelfTest.swift` — headless self-tests behind the CLI flags.
 - `Package.swift`, `Info.plist`, `build.sh`, `release.sh` — build/release config.
