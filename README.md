@@ -82,13 +82,6 @@ brew upgrade --cask doppio
 brew uninstall --cask doppio     # also unloads/removes the root lid helper
 #   add --zap to additionally delete preferences and ~/.doppio
 ```
-
-> The app is ad-hoc signed, not notarized (no Apple Developer ID). The cask's
-> `postflight` strips the Gatekeeper quarantine flag on install, so it launches
-> without the "unidentified developer" prompt. If macOS still blocks it, run
-> `xattr -dr com.apple.quarantine /Applications/Doppio.app` or approve it under
-> System Settings > Privacy & Security.
-
 ## Requirements
 
 - macOS 13 or later (built and tested on macOS 26 / Apple Silicon).
