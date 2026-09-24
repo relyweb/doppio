@@ -33,6 +33,11 @@ final class Preferences {
         static let scheduleStartMinutes = "scheduleStartMinutes"
         static let scheduleEndMinutes   = "scheduleEndMinutes"
         static let scheduleWeekdays     = "scheduleWeekdays"
+        static let autoResumeEnabled  = "autoResumeEnabled"
+        static let autoResumeSessions = "autoResumeSessions"
+        static let autoResumeMessage  = "autoResumeMessage"
+        static let autoResumePollSeconds = "autoResumePollSeconds"
+        static let autoResumeWindowHours = "autoResumeWindowHours"
     }
 
     private init() {
@@ -58,6 +63,11 @@ final class Preferences {
             Key.scheduleStartMinutes: 540,   // 09:00
             Key.scheduleEndMinutes: 1080,    // 18:00
             Key.scheduleWeekdays: [2, 3, 4, 5, 6],  // Mon–Fri (Calendar weekday)
+            Key.autoResumeEnabled: false,
+            Key.autoResumeSessions: [String](),
+            Key.autoResumeMessage: "Continue where you left off.",
+            Key.autoResumePollSeconds: 60.0,
+            Key.autoResumeWindowHours: 24,
         ])
     }
 
@@ -178,5 +188,38 @@ final class Preferences {
     var scheduleWeekdays: [Int] {
         get { store.array(forKey: Key.scheduleWeekdays) as? [Int] ?? [] }
         set { store.set(newValue, forKey: Key.scheduleWeekdays) }
+    }
+
+    // MARK: - Auto-resume (Claude Code)
+
+    /// Automatically continue selected Claude Code sessions after a usage-limit
+    /// reset.
+    var autoResumeEnabled: Bool {
+        get { store.bool(forKey: Key.autoResumeEnabled) }
+        set { store.set(newValue, forKey: Key.autoResumeEnabled) }
+    }
+
+    /// Watched sessions as `"<id>\t<cwd>"` tokens.
+    var autoResumeSessions: [String] {
+        get { store.array(forKey: Key.autoResumeSessions) as? [String] ?? [] }
+        set { store.set(newValue, forKey: Key.autoResumeSessions) }
+    }
+
+    /// The message sent to resume a session.
+    var autoResumeMessage: String {
+        get { store.string(forKey: Key.autoResumeMessage) ?? "Continue where you left off." }
+        set { store.set(newValue, forKey: Key.autoResumeMessage) }
+    }
+
+    /// How often the resumer re-checks watched sessions. Clamped 30–600 s.
+    var autoResumePollSeconds: TimeInterval {
+        get { min(600, max(30, store.double(forKey: Key.autoResumePollSeconds))) }
+        set { store.set(min(600, max(30, newValue)), forKey: Key.autoResumePollSeconds) }
+    }
+
+    /// Only list sessions active within this many hours in the picker (12/24/48).
+    var autoResumeWindowHours: Int {
+        get { let v = store.integer(forKey: Key.autoResumeWindowHours); return v == 0 ? 24 : v }
+        set { store.set(newValue, forKey: Key.autoResumeWindowHours) }
     }
 }

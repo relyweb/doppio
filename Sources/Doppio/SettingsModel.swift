@@ -65,6 +65,22 @@ final class SettingsModel: ObservableObject {
     @Published var graceSeconds = 90.0 { didSet { commit { prefs.graceSeconds = graceSeconds } } }
     @Published var pollSeconds = 5.0   { didSet { commit { prefs.pollSeconds = pollSeconds; coordinator.restartMonitor() } } }
 
+    // Auto-resume (Claude Code) — continue selected sessions after a limit reset.
+    @Published var autoResumeEnabled = false { didSet { commit {
+        prefs.autoResumeEnabled = autoResumeEnabled; reconfigureAutoResume() } } }
+    @Published var autoResumeMessage = "Continue where you left off." { didSet { commit {
+        prefs.autoResumeMessage = autoResumeMessage; reconfigureAutoResume() } } }
+    @Published var autoResumePollSeconds = 60.0 { didSet { commit {
+        prefs.autoResumePollSeconds = autoResumePollSeconds; reconfigureAutoResume() } } }
+    /// Picker recency window in hours (12/24/48); re-filters the list on change.
+    @Published var autoResumeWindowHours = 24 { didSet { commit {
+        prefs.autoResumeWindowHours = autoResumeWindowHours; refreshSessions() } } }
+    /// Recently-active sessions available to pick.
+    @Published var availableSessions: [ClaudeSession] = []
+    /// Ids of sessions selected for auto-resume.
+    @Published var watchedSessionIDs: Set<String> = []
+    private var sessionByID: [String: ClaudeSession] = [:]
+
     init(coordinator: AwakeCoordinator) {
         self.coordinator = coordinator
         reload()
@@ -94,7 +110,34 @@ final class SettingsModel: ObservableObject {
         weekdays = Set(prefs.scheduleWeekdays)
         graceSeconds = prefs.graceSeconds
         pollSeconds = prefs.pollSeconds
+        autoResumeEnabled = prefs.autoResumeEnabled
+        autoResumeMessage = prefs.autoResumeMessage
+        autoResumePollSeconds = prefs.autoResumePollSeconds
+        autoResumeWindowHours = prefs.autoResumeWindowHours
+        let persisted = prefs.autoResumeSessions.compactMap(ClaudeSession.from(token:))
+        for s in persisted { sessionByID[s.id] = s }
+        watchedSessionIDs = Set(persisted.map(\.id))
+        refreshSessions()
     }
+
+    /// Refresh the pickable session list from `~/.claude`, windowed by the
+    /// selected recency (hours).
+    func refreshSessions() {
+        availableSessions = ClaudeSessionStore.recent(
+            within: TimeInterval(autoResumeWindowHours * 3600))
+        for s in availableSessions { sessionByID[s.id] = s }
+    }
+
+    /// Select or deselect a session for auto-resume, persisting the change.
+    func setWatched(_ session: ClaudeSession, _ on: Bool) {
+        sessionByID[session.id] = session
+        if on { watchedSessionIDs.insert(session.id) } else { watchedSessionIDs.remove(session.id) }
+        guard !loading else { return }
+        prefs.autoResumeSessions = watchedSessionIDs.compactMap { sessionByID[$0]?.token }
+        reconfigureAutoResume()
+    }
+
+    private func reconfigureAutoResume() { AutoResumer.shared.applyPreferences() }
 
     func changeHotkey() {
         guard let hk = HotKeyRecorder.record(current: hotkeyDisplay) else { return }
