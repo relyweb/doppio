@@ -5,3 +5,5 @@ Doppio.app/
 Resources/AppIcon.iconset/
 dist/
 .DS_Store
+
+specs/
