@@ -12,6 +12,33 @@
 <meta property="og:url" content="https://doppio.relyweb.co/">
 <meta property="og:image" content="https://doppio.relyweb.co/menu.png">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://doppio.relyweb.co/">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Doppio",
+  "url": "https://doppio.relyweb.co/",
+  "description": "A macOS menu-bar app that keeps your Mac awake for agentic tasks."
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Doppio",
+  "operatingSystem": "macOS",
+  "applicationCategory": "UtilitiesApplication",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "description": "Menu-bar app that keeps your Mac awake for Claude Code, omp, opencode, Codex, Gemini — even locked or lid-closed.",
+  "url": "https://doppio.relyweb.co/",
+  "image": "https://doppio.relyweb.co/menu.png"
+}
+</script>
 <style>
   :root{
     --espresso:#2a1b12; --espresso2:#43291a; --caramel:#d89a4e; --caramel-d:#b3701f;
@@ -107,11 +134,12 @@
   section{padding:64px 0}
   h2{font-size:30px;letter-spacing:-.01em;margin-bottom:8px;text-align:center}
   .lead{color:var(--muted);text-align:center;max-width:60ch;margin:0 auto 40px}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
   .card h3{font-size:17px;margin-bottom:6px}
   .card p{color:var(--muted);font-size:14.5px}
-  .card .ico{font-size:22px;margin-bottom:10px}
+  .card .ico{margin-bottom:10px;color:var(--caramel-d)}
+  .card .ico svg{display:block}
 
   .shots{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:stretch}
   .frame{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;
@@ -149,7 +177,7 @@
 <header>
   <div class="wrap">
     <nav>
-      <div class="brand"><img src="icon.svg" alt="Doppio icon">Doppio</div>
+      <div class="brand"><img src="icon.svg" width="28" height="28" alt="Doppio icon">Doppio</div>
       <div><a href="#install">Install</a> &nbsp;·&nbsp; <a href="https://github.com/relyweb/doppio">GitHub</a></div>
     </nav>
     <div class="hero">
@@ -170,7 +198,7 @@
         <span class="orb a"></span><span class="orb b"></span>
         <div class="stage">
           <div class="win">
-            <img class="wm" src="icon.svg" alt="" aria-hidden="true">
+            <img class="wm" src="icon.svg" width="224" height="224" alt="" aria-hidden="true" loading="lazy">
             <div class="mbar">
               <div class="apps"><span class="logo"></span><b>Doppio</b><span>File</span><span>Edit</span></div>
               <div class="cluster">
@@ -211,14 +239,15 @@
 <section>
   <div class="wrap">
     <h2>Why Doppio</h2>
-    <p class="lead"><code>caffeinate</code> often still lets the Mac sleep when you lock the screen, and closing the lid always sleeps it. Doppio fixes both — and knows when your agents are actually working.</p>
+    <p class="lead"><code>caffeinate</code> fails when your screen locks, and closing the lid kills your tasks instantly. Doppio fixes both — and automatically tracks when your AI agents are working.</p>
     <div class="grid">
-      <div class="card"><div class="ico">🧠</div><h3>Task-aware</h3><p>Stays awake while Claude Code, omp, opencode, Codex, Gemini — or your own processes — are running. Presence-based, so long model calls never let it doze mid-task.</p></div>
-      <div class="card"><div class="ico">⏱️</div><h3>Timer &amp; schedule</h3><p>Keep awake for a set duration or until a time, or on a recurring weekly window — with a live countdown right in the menu bar.</p></div>
-      <div class="card"><div class="ico">🔒</div><h3>Locked &amp; lid-closed</h3><p>Uses IOKit power assertions plus <code>pmset</code> so work continues while locked, and even with the lid shut (on AC power).</p></div>
-      <div class="card"><div class="ico">🔋</div><h3>Battery-aware</h3><p>Optionally pause on battery below a level you choose. Explicit keep-awake is honored down to a 15% safety floor so a task can’t drain it flat.</p></div>
-      <div class="card"><div class="ico">⌨️</div><h3>Global hotkey</h3><p>Toggle keep-awake from anywhere with a configurable shortcut, with an on-screen HUD confirming each press.</p></div>
-      <div class="card"><div class="ico">🔌</div><h3>Signal API</h3><p>Any tool can precisely tell Doppio it’s busy via <code>~/.doppio/active</code> — perfect for wiring into agent hooks.</p></div>
+      <div class="card"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18V5" /><path d="M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4" /><path d="M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5" /><path d="M17.997 5.125a4 4 0 0 1 2.526 5.77" /><path d="M18 18a4 4 0 0 0 2-7.464" /><path d="M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517" /><path d="M6 18a4 4 0 0 1-2-7.464" /><path d="M6.003 5.125a4 4 0 0 0-2.526 5.77" /></svg></div><h3>Built for AI agents</h3><p>Automatically stays awake while Claude Code, omp, opencode, Codex, or Gemini run. Zero configuration needed; long model calls never put your Mac to sleep.</p></div>
+      <div class="card"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v4a1 1 0 0 0 1 1h3"/><path d="M21 17v-4a1 1 0 0 0-1-1h-3"/><path d="M9 7.11 12 4l3 3.11"/><path d="M15 16.89 12 20l-3-3.11"/><path d="M21 11.11V7a2 2 0 0 0-2-2h-4.89"/><path d="M3 12.89V17a2 2 0 0 0 2 2h4.89"/></svg></div><h3>Auto-resume</h3><p>When Claude Code halts due to a usage limit, Doppio can monitor the reset time and automatically resume the job the moment your limit resets.</p></div>
+      <div class="card"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></div><h3>Locked &amp; lid-closed</h3><p><code>caffeinate</code> stops working when you close your MacBook. Doppio safely manages IOKit and <code>pmset</code> to keep tasks running even with the lid shut.</p></div>
+      <div class="card"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2" /><line x1="12" x2="15" y1="14" y2="11" /><circle cx="12" cy="14" r="8" /></svg></div><h3>Timer &amp; schedule</h3><p>Set a countdown, pick an exact end time, or configure a recurring weekly schedule. Track the remaining time via a live countdown right in the menu bar.</p></div>
+      <div class="card"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2" /><path d="M6 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1" /><path d="m11 7-3 5h4l-3 5" /><line x1="22" x2="22" y1="11" y2="13" /></svg></div><h3>Battery safety</h3><p>Never wake up to a dead laptop. Doppio automatically pauses on battery power or halts at a 15% safety floor to protect your battery health.</p></div>
+      <div class="card"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" ry="2" /><path d="M6 8h.01" /><path d="M10 8h.01" /><path d="M14 8h.01" /><path d="M18 8h.01" /><path d="M8 12h.01" /><path d="M12 12h.01" /><path d="M16 12h.01" /><path d="M7 16h10" /></svg></div><h3>Global hotkey</h3><p>Toggle keep-awake from anywhere using a custom keyboard shortcut, complete with a clean on-screen HUD confirmation for each press.</p></div>
+      <div class="card"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5" /><line x1="12" x2="20" y1="19" y2="19" /></svg></div><h3>Drop-in API</h3><p>Any script can prevent sleep just by writing to <code>~/.doppio/active</code>. Wire keep-awake into your own tools and workflows with a single bash command.</p></div>
     </div>
   </div>
 </section>
@@ -226,10 +255,8 @@
 <section class="band">
   <div class="wrap">
     <h2>Everything in one menu</h2>
-    <p class="lead">Quick actions in the menu bar; all configuration in a native Preferences window.</p>
-    <div class="shots">
-      <div class="frame"><img src="menu.png" alt="Doppio menu with status and quick actions"></div>
-      <div class="frame"><img src="preferences.png" alt="Doppio Preferences window — General tab"></div>
+      <div class="frame"><img src="menu.png" width="1024" height="728" alt="Doppio menu with status and quick actions" loading="lazy"></div>
+      <div class="frame"><img src="preferences.png" width="940" height="680" alt="Doppio Preferences window — General tab" loading="lazy"></div>
     </div>
   </div>
 </section>
@@ -239,16 +266,14 @@
     <h2>Install</h2>
     <p class="lead">Requires macOS 13 Ventura or later. Free and open source.</p>
     <pre>brew tap relyweb/doppio
-brew trust relyweb/doppio     <span style="color:#a98">#  one-time: trust the tap</span>
 brew install --cask doppio
 open -a Doppio</pre>
-    <p class="note">Doppio is ad-hoc signed but not yet notarized. The cask strips the download quarantine on install; if macOS still blocks it, run <code>xattr -dr com.apple.quarantine /Applications/Doppio.app</code> or approve it under System Settings → Privacy &amp; Security.</p>
   </div>
 </section>
 
 <footer>
   <div class="wrap foot">
-    <div class="brand" style="color:#e9d8c4"><img src="icon.svg" alt="" style="width:22px;height:22px;border-radius:6px">Doppio</div>
+    <div class="brand" style="color:#e9d8c4"><img src="icon.svg" width="22" height="22" alt="" style="width:22px;height:22px;border-radius:6px" loading="lazy">Doppio</div>
     <div>
       <a href="https://github.com/relyweb/doppio">GitHub</a> &nbsp;·&nbsp;
       <a href="https://github.com/relyweb/doppio/releases">Releases</a> &nbsp;·&nbsp;
