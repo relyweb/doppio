@@ -206,7 +206,11 @@ Sources/Doppio/
   LidSleepHelper.swift   Root LaunchDaemon for safe lid-closed (AC-only) sleep
   PowerSource.swift      AC/battery reader (IOKit power sources)
   ActivityMonitor.swift  Process detection + ~/.doppio/active signal tokens
-  MenuController.swift    Menu-bar UI: status, countdown, quick actions
+  AutoResumer.swift      Claude Code usage-limit reset tracking & auto-resume
+  ClaudeSession.swift    Transcript discovery and session parsing
+  ClaudeCLI.swift        Headless CLI runner for Claude session resume
+  MenuController.swift   Menu-bar UI: status, countdown, quick actions
+  HUD.swift              On-screen hotkey HUD indicator
   PreferencesView.swift   SwiftUI Preferences window (General/Integrations/Schedule/Advanced)
   PreferencesWindow.swift Hosts the Preferences window (NSWindow + NSHostingController)
   SettingsModel.swift     Bridges the window to Preferences + live coordinator
@@ -223,24 +227,6 @@ Resources/AppIcon.svg    Coffee-cup logo (design source)
 Resources/AppIcon.icns   App icon compiled from the SVG (build.sh regenerates)
 release.sh                Build, zip, publish the GitHub release, bump the tap cask
 ```
-
-## Releasing a new version
-
-The app source and release artifacts live here; the Homebrew **cask** lives in a
-separate tap repo, [relyweb/homebrew-doppio](https://github.com/relyweb/homebrew-doppio),
-so users can `brew tap relyweb/doppio` without a URL. To cut a release (requires
-`gh` auth + push access to both repos):
-
-```bash
-git commit -am "…" && git push   # commit any source changes first
-./release.sh 0.3.0               # then cut the release
-```
-
-`release.sh` sets `CFBundleShortVersionString`/`CFBundleVersion` to the release
-version and commits + pushes that bump (so the git tag and the in-app About
-dialog match), then builds, zips, publishes the GitHub release, and updates
-`Casks/doppio.rb` in the tap repo automatically. Users get it with
-`brew upgrade --cask doppio`.
 
 ## License
 
