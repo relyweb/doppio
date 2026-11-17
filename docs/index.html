@@ -190,7 +190,7 @@
           <a class="btn ghost" href="https://github.com/relyweb/doppio">View on GitHub</a>
         </div>
         <div class="cmd">
-          <code id="cmd">brew tap relyweb/doppio &amp;&amp; brew install --cask doppio</code>
+          <code id="cmd">brew tap relyweb/doppio &amp;&amp; brew trust relyweb/doppio &amp;&amp; brew install --cask doppio</code>
           <button onclick="copyCmd()" id="copyBtn">Copy</button>
         </div>
       </div>
@@ -242,10 +242,10 @@
     <p class="lead"><code>caffeinate</code> fails when your screen locks, and closing the lid kills your tasks instantly. Doppio fixes both — and automatically tracks when your AI agents are working.</p>
     <div class="grid">
       <div class="card"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18V5" /><path d="M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4" /><path d="M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5" /><path d="M17.997 5.125a4 4 0 0 1 2.526 5.77" /><path d="M18 18a4 4 0 0 0 2-7.464" /><path d="M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517" /><path d="M6 18a4 4 0 0 1-2-7.464" /><path d="M6.003 5.125a4 4 0 0 0-2.526 5.77" /></svg></div><h3>Built for AI agents</h3><p>Automatically stays awake while Claude Code, omp, opencode, Codex, or Gemini run. Zero configuration needed; long model calls never put your Mac to sleep.</p></div>
-      <div class="card"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v4a1 1 0 0 0 1 1h3"/><path d="M21 17v-4a1 1 0 0 0-1-1h-3"/><path d="M9 7.11 12 4l3 3.11"/><path d="M15 16.89 12 20l-3-3.11"/><path d="M21 11.11V7a2 2 0 0 0-2-2h-4.89"/><path d="M3 12.89V17a2 2 0 0 0 2 2h4.89"/></svg></div><h3>Auto-resume</h3><p>When Claude Code halts due to a usage limit, Doppio can monitor the reset time and automatically resume the job the moment your limit resets.</p></div>
-      <div class="card"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></div><h3>Locked &amp; lid-closed</h3><p><code>caffeinate</code> stops working when you close your MacBook. Doppio safely manages IOKit and <code>pmset</code> to keep tasks running even with the lid shut.</p></div>
+      <div class="card"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v4a1 1 0 0 0 1 1h3"/><path d="M21 17v-4a1 1 0 0 0-1-1h-3"/><path d="M9 7.11 12 4l3 3.11"/><path d="M15 16.89 12 20l-3-3.11"/><path d="M21 11.11V7a2 2 0 0 0-2-2h-4.89"/><path d="M3 12.89V17a2 2 0 0 0 2 2h4.89"/></svg></div><h3>Auto-resume</h3><p>When Claude Code halts on an Anthropic usage limit, Doppio keeps retrying in the background and resumes the job automatically once your limit lifts — unattended.</p></div>
+      <div class="card"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></div><h3>Locked &amp; lid-closed</h3><p><code>caffeinate</code> stops working when you close your MacBook. Doppio safely manages IOKit and <code>pmset</code> to keep tasks running even with the lid shut (on AC power).</p></div>
       <div class="card"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2" /><line x1="12" x2="15" y1="14" y2="11" /><circle cx="12" cy="14" r="8" /></svg></div><h3>Timer &amp; schedule</h3><p>Set a countdown, pick an exact end time, or configure a recurring weekly schedule. Track the remaining time via a live countdown right in the menu bar.</p></div>
-      <div class="card"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2" /><path d="M6 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1" /><path d="m11 7-3 5h4l-3 5" /><line x1="22" x2="22" y1="11" y2="13" /></svg></div><h3>Battery safety</h3><p>Never wake up to a dead laptop. Doppio automatically pauses on battery power or halts at a 15% safety floor to protect your battery health.</p></div>
+      <div class="card"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2" /><path d="M6 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1" /><path d="m11 7-3 5h4l-3 5" /><line x1="22" x2="22" y1="11" y2="13" /></svg></div><h3>Battery safety</h3><p>Never wake up to a dead laptop. On battery, automatic keep-awake pauses below a level you choose, and everything yields at a 20% safety floor to protect your battery.</p></div>
       <div class="card"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" ry="2" /><path d="M6 8h.01" /><path d="M10 8h.01" /><path d="M14 8h.01" /><path d="M18 8h.01" /><path d="M8 12h.01" /><path d="M12 12h.01" /><path d="M16 12h.01" /><path d="M7 16h10" /></svg></div><h3>Global hotkey</h3><p>Toggle keep-awake from anywhere using a custom keyboard shortcut, complete with a clean on-screen HUD confirmation for each press.</p></div>
       <div class="card"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5" /><line x1="12" x2="20" y1="19" y2="19" /></svg></div><h3>Drop-in API</h3><p>Any script can prevent sleep just by writing to <code>~/.doppio/active</code>. Wire keep-awake into your own tools and workflows with a single bash command.</p></div>
     </div>
@@ -268,6 +268,7 @@
     <h2>Install</h2>
     <p class="lead">Requires macOS 13 Ventura or later. Free and open source.</p>
     <pre>brew tap relyweb/doppio
+brew trust relyweb/doppio
 brew install --cask doppio
 open -a Doppio</pre>
   </div>
@@ -290,7 +291,7 @@ open -a Doppio</pre>
 
 <script>
 function copyCmd(){
-  var t = "brew tap relyweb/doppio && brew install --cask doppio";
+  var t = "brew tap relyweb/doppio && brew trust relyweb/doppio && brew install --cask doppio";
   navigator.clipboard.writeText(t).then(function(){
     var b=document.getElementById('copyBtn'); b.textContent='Copied!';
     setTimeout(function(){b.textContent='Copy';},1600);

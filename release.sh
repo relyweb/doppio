@@ -62,7 +62,7 @@ if gh release view "v$VERSION" --repo "$REPO" >/dev/null 2>&1; then
 else
   gh release create "v$VERSION" dist/Doppio.zip --repo "$REPO" \
     --title "Doppio v$VERSION" \
-    --notes "Keep your Mac awake for agentic tasks. Install: brew tap relyweb/doppio && brew install --cask doppio"
+    --notes "Keep your Mac awake for agentic tasks. Install: brew tap relyweb/doppio && brew trust relyweb/doppio && brew install --cask doppio"
 fi
 
 echo "==> Bumping cask in $TAP_REPO ..."
@@ -79,4 +79,4 @@ rm -rf "$WORK"
 echo ""
 echo "Released v$VERSION. Users get it with:"
 echo "    brew tap relyweb/doppio"
-echo "    brew install --cask doppio        (brew upgrade --cask doppio to update)"
+echo "    brew trust relyweb/doppio && brew install --cask doppio   (brew upgrade --cask doppio to update)"

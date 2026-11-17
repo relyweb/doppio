@@ -32,7 +32,7 @@ watching for your agent processes.
   so a long model call that uses ~0% CPU never lets the Mac doze off mid-task.
   Persistent Claude Code background daemons (`claude daemon`, `bg-pty-host`,
   `bg-spare`) are ignored so an idle machine isn't pinned awake forever.
-- **Auto-resume for Claude Code.** When a Claude Code CLI session halts due to an Anthropic usage limit, Doppio can monitor the reset time and automatically resume the job the moment your limit resets, even completely unattended.
+- **Auto-resume for Claude Code.** When a Claude Code CLI session halts on an Anthropic usage limit, Doppio keeps retrying the resume in the background (a still-limited attempt is a cheap, no-op 429) and continues the job automatically once the limit lifts — even completely unattended.
 - **Timer mode (no integration needed).** Keep awake for 15 min … 8 hours, or
   **until a specific wall-clock time** — works even when locked.
 - **Manual mode.** "Keep Awake Indefinitely" toggle.
@@ -71,6 +71,7 @@ Doppio is distributed as a Homebrew **cask** via the `relyweb/doppio` tap:
 
 ```bash
 brew tap relyweb/doppio
+brew trust relyweb/doppio        # third-party taps must be trusted once
 brew install --cask doppio
 open -a Doppio                    # launches the menu-bar app
 ```
