@@ -34,6 +34,18 @@ final class AutoResumer {
         ClaudeCLI.resume($0, message: $1)
     }
 
+    /// Invoked once a session reaches a terminal state and will no longer be
+    /// retried (resumed, gone, or gave up), so its selection can be forgotten.
+    /// Default removes the session's token from the persisted watch list so an
+    /// already-resumed job is never re-sent on the next launch or settings
+    /// change. Overridable (like `resumeProvider`) to keep tests pure.
+    var onResolvedTerminally: (ClaudeSession) -> Void = { session in
+        let prefs = Preferences.shared
+        prefs.autoResumeSessions = prefs.autoResumeSessions.filter {
+            ClaudeSession.from(token: $0)?.id != session.id
+        }
+    }
+
     private struct Pending { let session: ClaudeSession; var attempts: Int; var nextAttempt: Date }
 
     private var pending: [String: Pending] = [:]   // keyed by session id
@@ -129,6 +141,7 @@ final class AutoResumer {
         switch outcome {
         case .resumed:
             pending[session.id] = nil
+            onResolvedTerminally(session)
             onEvent?(.resumed(session.project))
         case .rateLimited(let reset):
             p.nextAttempt = reset ?? Date().addingTimeInterval(
@@ -136,6 +149,7 @@ final class AutoResumer {
             pending[session.id] = p
         case .needsPermission:
             pending[session.id] = nil
+            onResolvedTerminally(session)
             onEvent?(.needsInteraction(session.project))
         case .authRequired:
             pending[session.id] = nil
@@ -145,10 +159,12 @@ final class AutoResumer {
             onEvent?(.cliMissing)
         case .sessionNotFound:
             pending[session.id] = nil
+            onResolvedTerminally(session)
             onEvent?(.failed(session.project))
         case .failed:
             if p.attempts >= Self.maxFailures {
                 pending[session.id] = nil
+                onResolvedTerminally(session)
                 onEvent?(.failed(session.project))
             } else {
                 p.nextAttempt = Date().addingTimeInterval(

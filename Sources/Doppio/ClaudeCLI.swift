@@ -12,6 +12,14 @@ enum ResumeOutcome: Equatable {
     case failed(String)               // any other error (retry a bounded number)
 }
 
+/// Minimal reference box so a background drain / watchdog closure can publish a
+/// value back to the calling thread. Synchronized after the child exits and the
+/// semaphore is signalled, so no additional locking is required here.
+private final class Box<T> {
+    var value: T
+    init(_ value: T) { self.value = value }
+}
+
 /// Thin wrapper around the Claude Code CLI. Runs a **headless** resume and maps
 /// the process result to a `ResumeOutcome`. The classifier is pure (input:
 /// exit code + stdout + stderr) so it is unit-testable without spawning `claude`.
@@ -48,7 +56,8 @@ enum ClaudeCLI {
 
     /// Resume `session` headlessly with `message`, returning the classified
     /// outcome. Blocks until the CLI exits (call off the main thread).
-    static func resume(_ session: ClaudeSession, message: String) -> ResumeOutcome {
+    static func resume(_ session: ClaudeSession, message: String,
+                       timeout: TimeInterval = 180) -> ResumeOutcome {
         guard let bin = resolveBinary() else { return .cliMissing }
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: bin)
@@ -63,13 +72,32 @@ enum ClaudeCLI {
         } catch {
             return .failed("launch failed: \(error.localizedDescription)")
         }
-        // Drain stdout fully before waiting so a large result can't deadlock.
+        // Drain stdout and stderr concurrently: reading one fully before the
+        // other can deadlock if the unread pipe fills its buffer and blocks the
+        // child. A background read of stderr runs while we read stdout here.
+        let errData = Box<Data>(Data())
+        let errDone = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .utility).async {
+            errData.value = err.fileHandleForReading.readDataToEndOfFile()
+            errDone.signal()
+        }
+        // Watchdog: a hung `claude` must not block the (serialized) engine or
+        // pin the Mac awake forever. Terminate it past the deadline.
+        let timedOut = Box<Bool>(false)
+        let watchdog = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
+        watchdog.schedule(deadline: .now() + timeout)
+        watchdog.setEventHandler { timedOut.value = true; proc.terminate() }
+        watchdog.resume()
+
         let outData = out.fileHandleForReading.readDataToEndOfFile()
-        let errData = err.fileHandleForReading.readDataToEndOfFile()
         proc.waitUntilExit()
+        watchdog.cancel()
+        errDone.wait()
+
+        if timedOut.value { return .failed("resume timed out after \(Int(timeout))s") }
         return classify(exitCode: proc.terminationStatus,
                         stdout: String(decoding: outData, as: UTF8.self),
-                        stderr: String(decoding: errData, as: UTF8.self))
+                        stderr: String(decoding: errData.value, as: UTF8.self))
     }
 
     /// Pure classifier over the CLI's `--output-format json` envelope

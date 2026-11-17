@@ -307,6 +307,17 @@ enum SelfTest {
         check("engine: A due again after backoff window", ar.stepForTesting(now: t0.addingTimeInterval(600)) == "A")
         ar.shutdown()
         check("engine: shutdown clears pending", ar.waitingCount == 0)
+        // Terminal resolve fires exactly for the resumed session (drives removal
+        // from the persisted watch list so it isn't re-sent on the next launch).
+        var resolved: [String] = []
+        let ar2 = AutoResumer()
+        ar2.onResolvedTerminally = { resolved.append($0.id) }
+        ar2.resumeProvider = { s, _ in s.id == "B" ? .resumed("ok") : .rateLimited(reset: nil) }
+        ar2.configure(enabled: true, sessions: [a, b], message: "go", pollSeconds: 60)
+        let t1 = Date()
+        _ = ar2.stepForTesting(now: t1); _ = ar2.stepForTesting(now: t1)
+        check("engine: resolved only the resumed session", resolved == ["B"])
+        ar2.shutdown()
 
         print("[resume] PASS")
     }
