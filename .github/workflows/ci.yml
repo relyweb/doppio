@@ -8,8 +8,7 @@ on:
 
 jobs:
   build-test:
-    name: Build & self-tests
-    runs-on: macos-14   # Apple Silicon runner
+    runs-on: macos-latest   # GitHub-supported Apple Silicon macOS image
     steps:
       - uses: actions/checkout@v4
 
