@@ -23,8 +23,8 @@ admin-authorized prompt. The daemon:
 
 - is installed only when you enable the feature, with root-owned files
   (`/Library/LaunchDaemons/…` and `/Library/Application Support/Doppio/…`);
-- reads only a boolean flag (`~/.doppio/lid-desired`) and calls fixed
-  absolute-path binaries — it never executes user-supplied data;
+- reads only a boolean flag (`~/.doppio/lid-desired`) for each local user and
+  calls fixed absolute-path binaries — it never executes user-supplied data;
 - enforces `pmset disablesleep` **only while on AC power** and forces normal
   sleep back on battery, so a lid-closed task cannot deep-discharge the battery.
 

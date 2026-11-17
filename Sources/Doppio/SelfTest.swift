@@ -84,6 +84,9 @@ enum SelfTest {
         let script = LidSleepHelper.scriptContents()
         check("lid: script gates on AC power", script.contains("'AC Power'"))
         check("lid: script has freshness window", script.contains("FRESH=\(LidSleepHelper.freshSeconds)"))
+        check("lid: script scans all users", script.contains("/Users/*/.doppio/"))
+        check("lid: script bakes no single home path",
+              !script.contains(FileManager.default.homeDirectoryForCurrentUser.path))
         check("lid: script clears sleep otherwise", script.contains("pmset -a disablesleep"))
 
         // Signal tokens: live PID kept, dead+stale token cleaned.

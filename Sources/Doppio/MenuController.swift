@@ -120,6 +120,20 @@ final class MenuController: NSObject, NSMenuDelegate {
             menu.addItem(stopAll)
         }
 
+        // ---- Auto-resume (visible only while sessions are waiting) ----
+        if coordinator.autoResumeActive {
+            let n = coordinator.autoResumeWaiting
+            let info = NSMenuItem(
+                title: "Waiting to resume \(n) Claude session\(n == 1 ? "" : "s")…",
+                action: nil, keyEquivalent: "")
+            info.isEnabled = false
+            menu.addItem(info)
+            let cancel = NSMenuItem(title: "Stop Waiting to Resume",
+                                    action: #selector(cancelAutoResume), keyEquivalent: "")
+            cancel.target = self
+            menu.addItem(cancel)
+        }
+
         menu.addItem(.separator())
 
         // ---- Preferences / About / Quit ----
@@ -180,6 +194,8 @@ final class MenuController: NSObject, NSMenuDelegate {
     }
 
     @objc private func clearWatches() { coordinator.clearWatches() }
+
+    @objc private func cancelAutoResume() { AutoResumer.shared.cancelWaiting() }
 
     @objc private func openPreferences() { preferences.show() }
 

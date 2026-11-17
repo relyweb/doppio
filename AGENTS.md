@@ -26,11 +26,13 @@ Entry point → decision → power state:
    and exits early for them; otherwise boots an `NSApplication` accessory app
    (`LSUIElement`, no Dock icon) with `AppDelegate`, which wires the
    `MenuController`, the global hotkey, and the coordinator.
-2. `AwakeCoordinator` — the state machine. On every tick it OR-combines three
+2. `AwakeCoordinator` — the state machine. On every tick it OR-combines the
    independent reasons to stay awake — **manual** toggle, **timer/deadline**,
-   and **activity** (a watched integration/custom process is running, or a live
-   `~/.doppio/active` token exists) — applies the battery policy, and reconciles
-   them into one desired power state.
+   **activity** (a watched integration/custom process is running, or a live
+   `~/.doppio/active` token exists), **watch-until-exit** (a chosen process is
+   still alive), **schedule** (inside a recurring weekly window), and
+   **auto-resume** (Claude Code sessions waiting for a usage-limit reset) —
+   applies the battery policy, and reconciles them into one desired power state.
 3. `PowerManager` — applies that state via IOKit assertions
    (`PreventUserIdleSystemSleep`, optional `PreventUserIdleDisplaySleep`). These
    never override critical-battery sleep. Lid-closed (clamshell) needs `pmset

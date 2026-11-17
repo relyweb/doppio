@@ -184,31 +184,41 @@ final class LidSleepHelper {
     /// The root daemon. Self-contained POSIX sh (no dependency on Doppio), so it
     /// keeps enforcing battery safety even if Doppio is not running.
     static func scriptContents() -> String {
-        // Single-quote-escape the path so an unusual home directory containing a
-        // quote can't break out of the sh string literal below.
-        let desired = Runtime.desiredFile.path.replacingOccurrences(of: "'", with: "'\\''")
+        // The daemon scans every local user's desired flag rather than one
+        // baked-in home path, so on a shared Mac a second user enabling the
+        // feature doesn't repoint the singleton daemon away from the first.
+        // The glob literal is fixed text (no interpolation), so there is nothing
+        // to escape. `lid-desired` is the last path component of Runtime.desiredFile.
+        let flagName = Runtime.desiredFile.lastPathComponent
         return """
         #!/bin/sh
         # Doppio lid-closed helper — root LaunchDaemon (\(label)).
         #
-        # SINGLE SAFETY RULE: pmset disablesleep is set to 1 ONLY when Doppio's
-        # desired flag is a fresh "1" AND the Mac is on AC power. In EVERY other
-        # case — on battery, no flag, a stale flag (Doppio not running), or "0" —
-        # it forces disablesleep 0, so a lid-closed task can NEVER drain the
+        # SINGLE SAFETY RULE: pmset disablesleep is set to 1 ONLY when some local
+        # user's desired flag is a fresh "1" AND the Mac is on AC power. In EVERY
+        # other case — on battery, no flag, a stale flag (Doppio not running), or
+        # "0" — it forces disablesleep 0, so a lid-closed task can NEVER drain the
         # battery to a deep discharge.
-        DESIRED_FILE='\(desired)'
         FRESH=\(freshSeconds)
+        now=$(/bin/date +%s)
+
+        on_ac=0
+        if /usr/bin/pmset -g ps | /usr/bin/grep -q "'AC Power'"; then
+          on_ac=1
+        fi
 
         target=0
-        if [ -r "$DESIRED_FILE" ]; then
-          val=$(/bin/cat "$DESIRED_FILE" 2>/dev/null)
-          mtime=$(/usr/bin/stat -f %m "$DESIRED_FILE" 2>/dev/null || echo 0)
-          now=$(/bin/date +%s)
-          age=$((now - mtime))
-          if [ "$val" = "1" ] && [ "$age" -le "$FRESH" ] && \\
-             /usr/bin/pmset -g ps | /usr/bin/grep -q "'AC Power'"; then
-            target=1
-          fi
+        if [ "$on_ac" = "1" ]; then
+          for DESIRED_FILE in /Users/*/.doppio/\(flagName); do
+            [ -r "$DESIRED_FILE" ] || continue
+            val=$(/bin/cat "$DESIRED_FILE" 2>/dev/null)
+            mtime=$(/usr/bin/stat -f %m "$DESIRED_FILE" 2>/dev/null || echo 0)
+            age=$((now - mtime))
+            if [ "$val" = "1" ] && [ "$age" -le "$FRESH" ]; then
+              target=1
+              break
+            fi
+          done
         fi
 
         current=0

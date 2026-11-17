@@ -91,6 +91,11 @@ final class AutoResumer {
 
     func shutdown() { stop(); pending.removeAll() }
 
+    /// User-initiated "stop waiting" from the menu: drop all pending resumes for
+    /// this run and release the keep-awake reason, without touching the saved
+    /// selection. Re-enabled on the next launch or settings change.
+    func cancelWaiting() { stop(); pending.removeAll(); notifyWaiting() }
+
     // MARK: - Scheduling
 
     private func start() {
