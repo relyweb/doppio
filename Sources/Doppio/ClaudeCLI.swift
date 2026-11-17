@@ -54,35 +54,32 @@ enum ClaudeCLI {
         return (!path.isEmpty && fm.isExecutableFile(atPath: path)) ? path : nil
     }
 
-    /// Resume `session` headlessly with `message`, returning the classified
-    /// outcome. Blocks until the CLI exits (call off the main thread).
-    static func resume(_ session: ClaudeSession, message: String,
-                       timeout: TimeInterval = 180) -> ResumeOutcome {
-        guard let bin = resolveBinary() else { return .cliMissing }
+    /// Result of running a child process with a watchdog timeout.
+    struct Run { let exitCode: Int32; let stdout: String; let stderr: String; let timedOut: Bool }
+
+    /// Run `bin args` in `cwd`, draining stdout/stderr concurrently (reading one
+    /// fully before the other can deadlock if the unread pipe fills the child's
+    /// buffer), with a watchdog that terminates the child past `timeout`.
+    /// Internal (not private) so the self-tests can exercise the timeout/drain
+    /// behavior with a stub tool instead of spawning the real `claude`.
+    /// Returns nil only if the process could not be launched.
+    static func runProcess(bin: String, args: [String], cwd: String?,
+                           timeout: TimeInterval) -> Run? {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: bin)
-        proc.arguments = ["-p", "--resume", session.id,
-                          "--output-format", "json", message]
-        proc.currentDirectoryURL = URL(fileURLWithPath: session.cwd, isDirectory: true)
+        proc.arguments = args
+        if let cwd { proc.currentDirectoryURL = URL(fileURLWithPath: cwd, isDirectory: true) }
         let out = Pipe(), err = Pipe()
         proc.standardOutput = out
         proc.standardError = err
-        do {
-            try proc.run()
-        } catch {
-            return .failed("launch failed: \(error.localizedDescription)")
-        }
-        // Drain stdout and stderr concurrently: reading one fully before the
-        // other can deadlock if the unread pipe fills its buffer and blocks the
-        // child. A background read of stderr runs while we read stdout here.
+        do { try proc.run() } catch { return nil }
+
         let errData = Box<Data>(Data())
         let errDone = DispatchSemaphore(value: 0)
         DispatchQueue.global(qos: .utility).async {
             errData.value = err.fileHandleForReading.readDataToEndOfFile()
             errDone.signal()
         }
-        // Watchdog: a hung `claude` must not block the (serialized) engine or
-        // pin the Mac awake forever. Terminate it past the deadline.
         let timedOut = Box<Bool>(false)
         let watchdog = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
         watchdog.schedule(deadline: .now() + timeout)
@@ -94,10 +91,24 @@ enum ClaudeCLI {
         watchdog.cancel()
         errDone.wait()
 
-        if timedOut.value { return .failed("resume timed out after \(Int(timeout))s") }
-        return classify(exitCode: proc.terminationStatus,
-                        stdout: String(decoding: outData, as: UTF8.self),
-                        stderr: String(decoding: errData.value, as: UTF8.self))
+        return Run(exitCode: proc.terminationStatus,
+                   stdout: String(decoding: outData, as: UTF8.self),
+                   stderr: String(decoding: errData.value, as: UTF8.self),
+                   timedOut: timedOut.value)
+    }
+
+    /// Resume `session` headlessly with `message`, returning the classified
+    /// outcome. Blocks until the CLI exits (call off the main thread).
+    static func resume(_ session: ClaudeSession, message: String,
+                       timeout: TimeInterval = 180) -> ResumeOutcome {
+        guard let bin = resolveBinary() else { return .cliMissing }
+        guard let run = runProcess(
+            bin: bin,
+            args: ["-p", "--resume", session.id, "--output-format", "json", message],
+            cwd: session.cwd, timeout: timeout)
+        else { return .failed("launch failed") }
+        if run.timedOut { return .failed("resume timed out after \(Int(timeout))s") }
+        return classify(exitCode: run.exitCode, stdout: run.stdout, stderr: run.stderr)
     }
 
     /// Pure classifier over the CLI's `--output-format json` envelope
@@ -109,7 +120,11 @@ enum ClaudeCLI {
             let isError = (obj["is_error"] as? Bool) ?? (exitCode != 0)
             let resultText = (obj["result"] as? String) ?? ""
             if !isError { return .resumed(resultText) }
-            return classifyError(resultText + "\n" + stderr)
+            // Fold any structured error subtype into the text the matcher sees,
+            // so a machine-readable `subtype` (if the CLI ever emits one) is
+            // honored without depending on it. Falls back to text heuristics.
+            let subtype = (obj["subtype"] as? String) ?? (obj["error_type"] as? String) ?? ""
+            return classifyError([resultText, subtype, stderr].joined(separator: "\n"))
         }
         // No JSON on stdout.
         if exitCode == 0 { return .resumed(stdout.trimmingCharacters(in: .whitespacesAndNewlines)) }
@@ -119,8 +134,13 @@ enum ClaudeCLI {
     private static func classifyError(_ text: String) -> ResumeOutcome {
         let t = text.lowercased()
         func has(_ needles: String...) -> Bool { needles.contains { t.contains($0) } }
+        // Whole-token match for status codes, so "14290 tokens" is NOT read as a
+        // 429 rate-limit (substring matching did that).
+        func hasCode(_ code: String) -> Bool {
+            t.range(of: "(^|[^0-9])\(code)([^0-9]|$)", options: .regularExpression) != nil
+        }
 
-        if has("usage limit", "rate limit", "rate_limit", "429",
+        if hasCode("429") || has("usage limit", "rate limit", "rate_limit",
                "too many requests", "resets at") { return .rateLimited(reset: nil) }
         if has("permission", "not allowed", "requires approval",
                "hasn't granted", "has not granted") { return .needsPermission }

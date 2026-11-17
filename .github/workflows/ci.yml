@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    name: Build & self-tests
+    runs-on: macos-14   # Apple Silicon runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build (release)
+        run: swift build -c release
+
+      - name: Self-tests (deterministic logic suites)
+        run: |
+          BIN="$(swift build -c release --show-bin-path)/Doppio"
+          "$BIN" --selftest-modes
+          "$BIN" --selftest-resume

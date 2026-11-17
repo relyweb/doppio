@@ -266,8 +266,25 @@ enum SelfTest {
         check("classify: no JSON, limit in stderr -> rateLimited",
               ClaudeCLI.classify(exitCode: 1, stdout: "", stderr: "429 too many requests")
                 == .rateLimited(reset: nil))
+        // #7: token counts that merely contain 429 are NOT a rate limit.
+        check("classify: '14290 tokens' is not a rate limit",
+              isFailed(ClaudeCLI.classify(exitCode: 1,
+                stdout: #"{"is_error":true,"result":"used 14290 tokens, something broke"}"#, stderr: "")))
+        // #7: a structured subtype is honored even if the message text is opaque.
+        check("classify: subtype rate_limit -> rateLimited",
+              ClaudeCLI.classify(exitCode: 1,
+                stdout: #"{"is_error":true,"result":"error","subtype":"usage limit"}"#, stderr: "")
+                == .rateLimited(reset: nil))
 
-        // Backoff: attempt 1 == base, then doubling, capped.
+        // #8: runProcess watchdog + drain, exercised with stub tools.
+        let fast = ClaudeCLI.runProcess(bin: "/bin/sh", args: ["-c", "printf out; printf err 1>&2"],
+                                        cwd: nil, timeout: 5)
+        check("runProcess: captures stdout", fast?.stdout == "out")
+        check("runProcess: captures stderr", fast?.stderr == "err")
+        check("runProcess: not timed out on fast tool", fast?.timedOut == false)
+        let slow = ClaudeCLI.runProcess(bin: "/bin/sh", args: ["-c", "sleep 5"],
+                                        cwd: nil, timeout: 1)
+        check("runProcess: times out on hung tool", slow?.timedOut == true)
         check("backoff: attempt 1 == base", AutoResumer.backoffDelay(attempt: 1, base: 60, cap: 300) == 60)
         check("backoff: attempt 3 doubles", AutoResumer.backoffDelay(attempt: 3, base: 60, cap: 300) == 240)
         check("backoff: capped", AutoResumer.backoffDelay(attempt: 8, base: 60, cap: 300) == 300)
@@ -301,13 +318,16 @@ enum SelfTest {
         check("engine: two sessions tracked", ar.waitingCount == 2)
 
         let t0 = Date()
-        let s1 = ar.stepForTesting(now: t0)
+        // #5: first attempt is delayed by one poll interval, so nothing is due
+        // immediately (gives a window to de-select a mistakenly-picked session).
+        check("engine: nothing due before first-attempt delay", ar.stepForTesting(now: t0) == nil)
+        let due = t0.addingTimeInterval(61)   // just past the 60s delay
+        let s1 = ar.stepForTesting(now: due)
         check("engine: step 1 attempts exactly one", s1 != nil && calls.count == 1)
-        let s2 = ar.stepForTesting(now: t0)
+        let s2 = ar.stepForTesting(now: due)
         check("engine: step 2 attempts the other (serialized)", s2 != nil && s2 != s1 && calls.count == 2)
         check("engine: resumed B dropped, rate-limited A remains", ar.waitingCount == 1)
-        check("engine: A backs off — not due at t0", ar.stepForTesting(now: t0) == nil)
-        check("engine: A due again after backoff window", ar.stepForTesting(now: t0.addingTimeInterval(600)) == "A")
+        check("engine: A due again after backoff window", ar.stepForTesting(now: due.addingTimeInterval(600)) == "A")
         ar.shutdown()
         check("engine: shutdown clears pending", ar.waitingCount == 0)
         // Terminal resolve fires exactly for the resumed session (drives removal
@@ -317,8 +337,8 @@ enum SelfTest {
         ar2.onResolvedTerminally = { resolved.append($0.id) }
         ar2.resumeProvider = { s, _ in s.id == "B" ? .resumed("ok") : .rateLimited(reset: nil) }
         ar2.configure(enabled: true, sessions: [a, b], message: "go", pollSeconds: 60)
-        let t1 = Date()
-        _ = ar2.stepForTesting(now: t1); _ = ar2.stepForTesting(now: t1)
+        let due2 = Date().addingTimeInterval(61)
+        _ = ar2.stepForTesting(now: due2); _ = ar2.stepForTesting(now: due2)
         check("engine: resolved only the resumed session", resolved == ["B"])
         ar2.shutdown()
 

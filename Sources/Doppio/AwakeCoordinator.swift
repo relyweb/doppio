@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import Foundation
+import Darwin
 
 /// Central brain. Combines three independent reasons the Mac should stay awake
 /// and reconciles them into a single power state on every tick:
@@ -30,6 +31,9 @@ final class AwakeCoordinator {
 
     /// Processes to keep awake until they exit (pid -> display name).
     private(set) var watched: [Int32: String] = [:]
+    /// Start time (seconds) captured when each PID was watched, so a PID reused
+    /// by a different process after the original exits is not mistaken for it.
+    private var watchedStart: [Int32: UInt64] = [:]
     private var lastScheduleActive = false
 
     // A steady tick so timer expiry and grace-period expiry are honored even
@@ -207,15 +211,37 @@ final class AwakeCoordinator {
     /// Keep awake until a specific process exits.
     func watch(pid: Int32, name: String) {
         watched[pid] = name
+        watchedStart[pid] = Self.processStartTime(pid)
         recompute()
     }
     func unwatch(pid: Int32) {
         watched[pid] = nil
+        watchedStart[pid] = nil
         recompute()
     }
     func clearWatches() {
         watched.removeAll()
+        watchedStart.removeAll()
         recompute()
+    }
+
+    /// Start time (seconds since epoch) of `pid`, or nil if it can't be read.
+    /// Used to distinguish the original watched process from a later one that
+    /// reused its PID.
+    private static func processStartTime(_ pid: Int32) -> UInt64? {
+        var info = proc_bsdinfo()
+        let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+        let n = proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size)
+        return n == size ? UInt64(info.pbi_start_tvsec) : nil
+    }
+
+    /// A watched PID is still "ours" while it is alive AND its start time matches
+    /// what we recorded (guards against PID reuse).
+    private func watchStillAlive(_ pid: Int32) -> Bool {
+        guard kill(pid, 0) == 0 else { return false }
+        guard let recorded = watchedStart[pid] else { return true }
+        guard let current = Self.processStartTime(pid) else { return true }
+        return current == recorded
     }
 
     /// Re-read integration/custom-process settings and repoll immediately.
@@ -256,9 +282,11 @@ final class AwakeCoordinator {
             timerUntil = nil
             onEvent?(.timerExpired)
         }
-        // Drop watched processes that have exited (fire once each).
-        for (pid, name) in watched where kill(pid, 0) != 0 {
+        // Drop watched processes that have exited (fire once each). A PID whose
+        // start time no longer matches was reused by a different process.
+        for (pid, name) in watched where !watchStillAlive(pid) {
             watched[pid] = nil
+            watchedStart[pid] = nil
             onEvent?(.watchEnded(name))
         }
         // Notify when a scheduled window closes (edge-triggered).

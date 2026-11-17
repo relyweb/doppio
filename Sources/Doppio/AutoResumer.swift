@@ -72,9 +72,12 @@ final class AutoResumer {
 
         let wanted = Dictionary(sessions.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         for id in pending.keys where wanted[id] == nil { pending[id] = nil }
-        let now = Date()
+        // Delay the first attempt by one poll interval rather than firing
+        // immediately, so a session toggled by mistake can be de-selected (which
+        // drops it from `pending`) before any turn is spent on it.
+        let firstAttempt = Date().addingTimeInterval(self.pollSeconds)
         for (id, s) in wanted where pending[id] == nil {
-            pending[id] = Pending(session: s, attempts: 0, nextAttempt: now)
+            pending[id] = Pending(session: s, attempts: 0, nextAttempt: firstAttempt)
         }
         notifyWaiting()
         if pending.isEmpty { stop() } else { start() }
